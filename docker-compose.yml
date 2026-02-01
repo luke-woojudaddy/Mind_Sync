@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Flask 백엔드 서비스
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mindsync-backend
+    ports:
+      - "5050:5000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - mindsync-network
+    restart: unless-stopped
+
+  # React 프론트엔드 서비스 (들여쓰기 수정됨)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mindsync-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - HOST=0.0.0.0               # [필수] 외부 접속 허용
+      - CHOKIDAR_USEPOLLING=true   # 파일 변경 감지
+      - WATCHPACK_POLLING=true     # 파일 변경 감지 (보조)
+      # ▼ [중요] 아까 확인한 IP와 포트(5050) 적용
+      - REACT_APP_API_URL=http://192.168.0.43:5050
+    depends_on:
+      - backend
+    networks:
+      - mindsync-network
+    restart: unless-stopped
+
+  # Redis 데이터베이스 서비스 (들여쓰기 수정됨)
+  redis:
+    image: redis:7-alpine
+    container_name: mindsync-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - mindsync-network
+    restart: unless-stopped
+
+networks:
+  mindsync-network:
+    driver: bridge
+
+volumes:
+  redis-data:
