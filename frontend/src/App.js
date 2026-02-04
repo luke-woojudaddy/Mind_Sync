@@ -2,15 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
 // --- 전역 설정 및 소켓 초기화 ---
-const SOCKET_URL = 'http://192.168.0.43:5050';
+const SOCKET_URL = 'https://api.lumiverselab.com';
+const API_URL = 'https://api.lumiverselab.com';
+
+// [속도 개선 1] WebSocket 강제 사용으로 초기 연결 딜레이 제거
 const socket = io(SOCKET_URL, {
-  transports: ['websocket'],
+  transports: ['websocket'], 
   autoConnect: false,
 });
 
 // --- API 로직 통합 ---
-const API_URL = 'http://192.168.0.43:5050';
-
 const createRoom = async (name) => {
   const response = await fetch(`${API_URL}/api/rooms`, {
     method: 'POST',
@@ -32,7 +33,7 @@ const joinRoom = async (roomId) => {
 
 const generateUserId = () => 'user_' + Math.random().toString(36).substr(2, 9);
 
-// 게임 팁 리스트
+// 게임 팁 리스트 (기존 유지)
 const GAME_TIPS = [
     "이야기꾼은 너무 쉽지도, 너무 어렵지도 않게 단어를 선정해야 점수를 얻습니다!",
     "내 카드가 정답으로 오해받으면(낚시) 추가 점수를 얻을 수 있습니다.",
@@ -51,7 +52,7 @@ const GAME_TIPS = [
     "점수가 뒤처지고 있다면 과감한 낚시로 역전을 노려보세요!"
 ];
 
-// 게임 룰 모달 컴포넌트
+// 게임 룰 모달 컴포넌트 (기존 유지)
 const RulesModal = ({ onClose }) => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
         <div className="bg-gray-800 border border-white/20 p-6 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -104,8 +105,11 @@ function App() {
 
   // 결과 화면 딜레이 처리를 위한 state
   const [resultDelayCount, setResultDelayCount] = useState(0);
-  const [resultMessage, setResultMessage] = useState(null); // 결과 화면 멘트
-  const [currentTip, setCurrentTip] = useState(GAME_TIPS[0]); // 현재 보여줄 팁
+  const [resultMessage, setResultMessage] = useState(null); 
+  const [currentTip, setCurrentTip] = useState(GAME_TIPS[0]); 
+
+  // [속도 개선 2] 로딩 상태 추가
+  const [isLoading, setIsLoading] = useState(false);
 
   const prevPhaseRef = useRef(null);
   const [zoomCard, setZoomCard] = useState(null); 
@@ -123,7 +127,7 @@ function App() {
   // 터치 스와이프 처리를 위한 Ref
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
-  const minSwipeDistance = 50; // 스와이프 인식 최소 거리
+  const minSwipeDistance = 50; 
 
   useEffect(() => {
     let storedId = sessionStorage.getItem('mind_sync_user_id');
@@ -139,7 +143,6 @@ function App() {
     } else {
         setMyName(`Player_${storedId.substr(-4)}`);
     }
-    // 랜덤 팁 설정
     setCurrentTip(GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]);
   }, []);
 
@@ -161,6 +164,7 @@ function App() {
     });
 
     socket.on('game_state_update', (data) => {
+      setIsLoading(false); // [속도 개선] 데이터 수신 시 로딩 해제
       setUsers(data.users);
       const currentPhase = data.room.phase;
       
@@ -172,11 +176,10 @@ function App() {
               setSelectedWord(null);
               setZoomCard(null);
               setMyVotedCardId(null);
-              setResultMessage(null); // 결과 멘트 초기화
-              setCurrentTip(GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]); // 팁 변경
+              setResultMessage(null); 
+              setCurrentTip(GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]); 
           }
           
-          // 결과 화면 진입 시 10초 딜레이 설정
           if (currentPhase === 'result') {
               setResultDelayCount(10);
               determineResultMessage(data.room, data.users);
@@ -209,15 +212,20 @@ function App() {
         setTimeout(() => setNotification(null), 3000);
     });
 
+    socket.on('error', (data) => {
+        alert(data.message);
+        setIsLoading(false);
+    });
+
     return () => {
       socket.off('update_user_list');
       socket.off('game_state_update');
       socket.off('timer_update');
       socket.off('notification');
+      socket.off('error');
     };
   }, [view]);
 
-  // 결과 화면 카운트다운 효과
   useEffect(() => {
       if (resultDelayCount > 0) {
           const timer = setTimeout(() => setResultDelayCount(resultDelayCount - 1), 1000);
@@ -225,7 +233,6 @@ function App() {
       }
   }, [resultDelayCount]);
 
-  // 결과 멘트 결정 로직
   const determineResultMessage = (room, currentUsers) => {
       const me = currentUsers.find(u => u.user_id === myId);
       if (!me) return;
@@ -242,7 +249,6 @@ function App() {
               message = "나이스 스토리텔링! 성공입니다! 🎭";
           }
       } else {
-          // 투표자
           const reason = me.last_score_reason || "";
           
           if (reason.includes("정답")) {
@@ -258,7 +264,6 @@ function App() {
       setResultMessage(message);
   };
 
-  // 게임 종료 시 멘트 결정 로직 (등수 기반)
   const getGameOverMessage = (sortedUsers) => {
       const myRankIndex = sortedUsers.findIndex(u => u.user_id === myId);
       if (myRankIndex === 0) return "🥇 우승을 축하합니다! 당신이 최고의 이야기꾼! 🎉";
@@ -266,10 +271,8 @@ function App() {
       return "수고하셨습니다! 즐거운 게임 되셨나요? 😊";
   };
 
-  // 방장 여부 확인
   const isHost = roomState?.host_id === myId;
 
-  // 줌 네비게이션 함수
   const handleNextZoom = () => {
     if (!zoomCard) return;
     setSlideDirection(1); 
@@ -288,7 +291,6 @@ function App() {
     setZoomCard({ ...list[prevIndex], isVotingCandidate: zoomCard.isVotingCandidate });
   };
 
-  // 터치 이벤트 핸들러
   const onTouchStart = (e) => {
     touchEndX.current = null;
     touchStartX.current = e.targetTouches[0].clientX;
@@ -312,28 +314,39 @@ function App() {
     }
   };
 
+  const enterGame = (rId) => {
+    if (!socket.connected) socket.connect();
+    // [속도 개선] 소켓 연결 즉시 emit (setTimeout 제거 또는 최소화)
+    socket.emit('join_game', { room_id: rId, user_id: myId, username: myName });
+  };
+
   const handleCreateRoom = async () => {
+    if (isLoading) return;
+    setIsLoading(true); // 로딩 시작
     try {
-        const response = await createRoom('New Room');
+        const response = await createRoom(`${myName}'s Room`); // 임시 방 이름
         setRoomId(response.room.id);
         setView('waiting');
-        setTimeout(() => enterGame(response.room.id), 100);
-    } catch (e) { alert(e.message); }
+        enterGame(response.room.id);
+    } catch (e) { 
+        alert(e.message); 
+        setIsLoading(false);
+    }
   };
   
   const handleJoinRoom = async () => {
     if(!roomInput) return alert("방 번호를 입력해주세요!");
+    if (isLoading) return;
+    setIsLoading(true); // 로딩 시작
     try {
         await joinRoom(roomInput);
         setRoomId(roomInput);
         setView('waiting');
-        setTimeout(() => enterGame(roomInput), 100);
-    } catch (e) { alert("접속 오류: " + e.message); }
-  };
-
-  const enterGame = (rId) => {
-    if (!socket.connected) socket.connect();
-    socket.emit('join_game', { room_id: rId, user_id: myId, username: myName });
+        enterGame(roomInput);
+    } catch (e) { 
+        alert("접속 오류: " + e.message); 
+        setIsLoading(false);
+    }
   };
   
   const handleUpdateProfile = () => {
@@ -364,7 +377,7 @@ function App() {
   };
 
   const handleNextRound = () => {
-      if (resultDelayCount > 0) return; // 딜레이 중 클릭 방지
+      if (resultDelayCount > 0) return; 
       socket.emit('next_round', { room_id: roomId });
       setMyVotedCardId(null);
   };
@@ -428,6 +441,14 @@ function App() {
         .animate-slide-left { animation: slideInLeft 0.3s ease-out forwards; }
       `}</style>
 
+      {/* [속도 개선] 로딩 오버레이 */}
+      {isLoading && (
+          <div className="absolute inset-0 bg-black/70 z-[200] flex flex-col items-center justify-center backdrop-blur-sm">
+              <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-purple-300 font-bold animate-pulse">서버 접속 중...</p>
+          </div>
+      )}
+
       {notification && (
           <div className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl z-[100] animate-bounce font-bold whitespace-nowrap">
               {notification}
@@ -443,10 +464,22 @@ function App() {
                 <label className="text-xs text-gray-400 ml-1">닉네임</label>
                 <input value={myName} onChange={e=>updateLocalName(e.target.value)} className="w-full bg-black/40 border border-white/20 rounded-lg px-4 py-2 text-white text-center font-bold" />
             </div>
-            <button onClick={handleCreateRoom} className="bg-gradient-to-r from-pink-600 to-purple-600 w-full py-4 rounded-xl font-bold mb-4 text-lg shadow-lg">방 만들기</button>
+            <button 
+                onClick={handleCreateRoom} 
+                disabled={isLoading}
+                className="bg-gradient-to-r from-pink-600 to-purple-600 w-full py-4 rounded-xl font-bold mb-4 text-lg shadow-lg disabled:opacity-50"
+            >
+                방 만들기
+            </button>
             <div className="flex gap-2">
                 <input value={roomInput} onChange={e=>setRoomInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()} className="flex-1 bg-black/40 border border-white/20 rounded-xl px-4 text-white placeholder-gray-500" placeholder="방 번호" />
-                <button onClick={handleJoinRoom} className="bg-white/10 border border-white/20 px-6 rounded-xl hover:bg-white/20">입장</button>
+                <button 
+                    onClick={handleJoinRoom} 
+                    disabled={isLoading}
+                    className="bg-white/10 border border-white/20 px-6 rounded-xl hover:bg-white/20 disabled:opacity-50"
+                >
+                    입장
+                </button>
             </div>
          </div>
       )}
@@ -564,14 +597,14 @@ function App() {
                                 <p className="text-gray-400 text-sm">아래 덱에서 카드를 선택해주세요.</p>
                             </div>
                         )}
-                        {/* [수정] 이야기꾼 단어 선택 레이아웃: 모바일/데스크톱 대응 개선 */}
                         {isStoryteller && confirmedCard && (
                              <div className="w-full h-fit flex flex-col md:flex-row items-center md:items-start justify-center gap-4 md:gap-8 px-4 max-w-7xl mx-auto pb-40">
-                                {/* Left: Card Container */}
                                 <div className="relative w-full max-w-[280px] sm:max-w-[320px] md:max-w-md flex-shrink-0 mt-4">
                                     <div className="relative group cursor-pointer" onClick={() => handleCardClick(confirmedCard)}>
                                         <img 
                                             src={confirmedCard.src} 
+                                            // [최적화] 지연 로딩
+                                            loading="lazy"
                                             className="w-full h-auto max-h-[35vh] md:max-h-[65vh] rounded-2xl shadow-[0_0_30px_rgba(236,72,153,0.3)] border-4 border-pink-500/50 object-contain bg-black/30 transition-transform duration-300" 
                                         />
                                         <button 
@@ -583,7 +616,6 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Right: Word Selection & Action */}
                                 <div className="flex flex-col items-center md:items-start w-full max-w-2xl">
                                     <div className="mb-4 text-center md:text-left">
                                         <h3 className="text-xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300 mb-1">단어 선택</h3>
@@ -682,7 +714,12 @@ function App() {
                                             className={`relative aspect-[2/3] group cursor-pointer transition-all duration-300 
                                             ${amIVoted ? (isMyVoted ? 'scale-105 z-10 ring-4 ring-blue-500 rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'opacity-40 grayscale pointer-events-none') : 'hover:scale-105'} 
                                             ${card.user_id === myId ? 'opacity-70 pointer-events-none' : ''}`}>
-                                            <img src={card.card_src} className="w-full h-full rounded-xl shadow-2xl object-cover border border-white/20" />
+                                            <img 
+                                                src={card.card_src} 
+                                                // [최적화] 지연 로딩
+                                                loading="lazy"
+                                                className="w-full h-full rounded-xl shadow-2xl object-cover border border-white/20" 
+                                            />
                                             {card.user_id === myId && <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center"><span className="text-white font-bold border border-white/50 px-2 py-1 rounded text-xs">내 카드</span></div>}
                                             {isMyVoted && <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">내 투표 ✅</div>}
                                         </div>
@@ -709,7 +746,13 @@ function App() {
                                 <div key={idx} className={`relative flex flex-col items-center overflow-visible bg-white/5 p-3 rounded-2xl border border-white/10 ${res.is_storyteller ? 'order-first ring-2 ring-yellow-500/50 bg-yellow-500/5' : ''}`}>
                                     {res.is_storyteller && <div className="absolute -top-4 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full z-20 shadow-lg animate-bounce whitespace-nowrap">👑 정답 카드</div>}
                                     <div className={`w-32 h-48 rounded-lg overflow-hidden shadow-2xl border-2 bg-gray-900 mb-3 ${res.is_storyteller ? 'border-yellow-500 shadow-yellow-500/50' : 'border-gray-600'}`}>
-                                        <img src={res.card_src} className="w-full h-full object-cover" alt="result" />
+                                        <img 
+                                            src={res.card_src} 
+                                            // [최적화] 지연 로딩
+                                            loading="lazy"
+                                            className="w-full h-full object-cover" 
+                                            alt="result" 
+                                        />
                                     </div>
                                     <div className="w-full flex items-center justify-center gap-1 mb-2">
                                         <span className="text-[10px] text-gray-400">🎨 제출:</span>
@@ -780,7 +823,6 @@ function App() {
                 )}
             </div>
 
-            {/* 하단 패(카드 패) - 이야기꾼이 카드 확정한 단계에서는 숨김 */}
             {['storyteller_choosing', 'audience_submitting'].includes(roomState.phase) && !(isStoryteller && confirmedCard) && (
                 <div className={`fixed bottom-0 left-0 w-full z-50 pointer-events-none transition-opacity duration-500 ${amISubmitted ? 'opacity-80' : 'opacity-100'}`}>
                     <div className="bg-gradient-to-t from-gray-900 via-gray-900/95 to-transparent pt-4 pb-4 px-2">
@@ -795,7 +837,12 @@ function App() {
                                             ${confirmedCard?.id === card.id ? 'opacity-50 grayscale' : ''} 
                                             ${isSubmittedLocal ? 'opacity-40 border-green-500 border-2' : ''}
                                             ${isMyStoryCard ? 'ring-2 ring-yellow-500 opacity-70' : ''}`}>
-                                            <img src={card.src} className="w-full h-full object-cover" />
+                                            <img 
+                                                src={card.src} 
+                                                // [최적화] 지연 로딩
+                                                loading="lazy"
+                                                className="w-full h-full object-cover" 
+                                            />
                                             {isSubmittedLocal && <div className="absolute inset-0 flex items-center justify-center bg-black/50"><span className="text-2xl font-bold">✅</span></div>}
                                             {isMyStoryCard && <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60"><span className="text-xl">📖</span><span className="text-[8px] text-yellow-300 font-bold mt-1">제출함</span></div>}
                                             {card.is_new && <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg shadow-md animate-pulse">NEW</div>}
@@ -839,6 +886,8 @@ function App() {
                                 <img
                                     key={zoomCard.id || zoomCard.card_id} 
                                     src={zoomCard.src || zoomCard.card_src}
+                                    // [최적화] 지연 로딩
+                                    loading="lazy"
                                     className={`absolute w-full h-full object-contain rounded-xl shadow-2xl pointer-events-none ${slideDirection > 0 ? 'animate-slide-right' : slideDirection < 0 ? 'animate-slide-left' : ''}`}
                                 />
                                 {mySubmittedCards.includes(zoomCard.id) && !zoomCard.isVotingCandidate && (

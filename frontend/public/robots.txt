@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mindsync.lumiverselab.com/sitemap.xml
