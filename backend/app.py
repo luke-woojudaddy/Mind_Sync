@@ -10,16 +10,14 @@ from flask_socketio import SocketIO, join_room, leave_room, emit
 import redis
 
 # ==========================================
-# [설정] 깃허브 이미지 주소 (최종 수정됨)
+# [설정] 깃허브 이미지 주소
 # ==========================================
-# 깃허브 레포지토리 내의 이미지 경로: Mind_Sync/decks/deck1
 EXTERNAL_IMAGE_URL = "https://luke-woojudaddy.github.io/Mind_Sync/decks/deck1"
 
 # ==========================================
-# [데이터] 단어 리스트
+# [데이터] 단어 리스트 (생략 없이 전체 포함)
 # ==========================================
 WORD_POOL = [
-    # 1. 감정과 심리 상태
     "그리움", "설렘", "공포", "환희", "우울", "갈망", "평온", "분노", "질투", "동경",
     "고독", "허무", "안도", "연민", "경외", "후회", "희망", "절망", "혼란", "확신",
     "자괴감", "자부심", "시기", "용기", "비겁", "냉소", "열정", "권태", "호기심", "의심",
@@ -44,8 +42,6 @@ WORD_POOL = [
     "인류애", "정의감", "사명감", "무심함", "비정함", "정당함", "억울함", "비참함", "황량함", "포근함",
     "상쾌함", "뭉클함", "멍함", "울컥함", "거만함", "담백함", "끈기", "변덕", "조울", "차분함",
     "막막함", "미안함", "고마움", "쑥스러움", "민망함", "당황스러움", "전율", "다정다감",
-
-    # 2. 시간과 공간의 추상적 표현
     "찰나", "영원", "과거", "미래", "현재", "새벽", "황혼", "정오", "자정", "심연",
     "우주", "미로", "경계", "틈새", "통로", "막다른 길", "시작", "끝", "회귀", "단절",
     "연결", "고립", "광장", "골목", "지평선", "수평선", "궤도", "차원", "평행", "교차",
@@ -69,8 +65,6 @@ WORD_POOL = [
     "선착장", "비행장", "성지", "폐가", "흉가", "금지구역", "최전방", "휴전선", "국경선", "사선",
     "구름다리", "무지개다리", "징검다리", "외길", "샛길", "지름길", "우회로", "전생", "환생", "다중우주",
     "싱귤래리티", "화이트홀", "구덩이", "구멍", "동굴", "벼랑", "절벽", "비탈길", "터널",
-
-    # 3. 자연과 사물의 메타포
     "가시", "꽃잎", "뿌리", "줄기", "열매", "씨앗", "고목", "넝쿨", "이끼", "돋아남",
     "시듦", "낙엽", "단풍", "파도", "물결", "거품", "소용돌이", "물방울", "이슬", "서리",
     "눈꽃", "우박", "소나기", "가랑비", "무지개", "번개", "천둥", "바람", "돌풍", "미풍",
@@ -81,8 +75,6 @@ WORD_POOL = [
     "고치", "나비", "벌레", "거미줄", "둥지", "먹이", "포식", "기생", "공생", "야생",
     "가축", "길들임", "숲의 속삭임", "바다의 노래", "땅의 울분", "하늘의 눈물", "구름의 이동", "안개의 장막", "얼음의 침묵", "불의 춤",
     "돌의 인내", "나무의 지혜", "강물의 유랑", "산의 침묵", "들판의 자유", "늪의 유혹", "사막의 고독", "동굴의 비밀", "파도의 포말", "숲의 정적",
-
-    # 4. 인간관계와 사회적 서사
     "약속", "유언", "편지", "고백", "비밀", "소문", "거짓말", "진실", "가면", "얼굴",
     "시선", "손길", "발걸음", "포옹", "입맞춤", "작별", "만남", "재회", "동행", "경쟁",
     "협력", "희생", "헌신", "이기심", "배려", "오해", "이해", "관용", "복수", "응징",
@@ -93,8 +85,6 @@ WORD_POOL = [
     "고향", "타향", "우정", "혈연", "연인", "스승", "제자", "원수", "그림자", "분신",
     "역할", "연극", "무대", "관객", "주인공", "조연", "기록", "삭제", "은폐", "노출",
     "감금", "탈출", "미행", "추격", "잠입", "도주", "매복", "습격", "방어", "공격",
-
-    # 5. 예술, 철학 및 감각적 상태
     "추상", "구상", "여백", "채움", "비움", "질서", "무질서", "조화", "부조화", "균형",
     "불균형", "대칭", "비대칭", "리듬", "멜로디", "템포", "강약", "고저", "음영", "채도",
     "명도", "농도", "밀도", "강도", "경도", "유연함", "딱딱함", "부드러움", "거침", "매끄러움",
@@ -105,8 +95,6 @@ WORD_POOL = [
     "변이", "복제", "창조", "파괴", "모방", "독창", "고전", "현대", "아방가르드", "키치",
     "탐미", "숭고미", "추함", "아름다움", "성스러움", "속됨", "아이러니", "패러독스", "은유", "직유",
     "상징", "알레고리", "풍자", "해학", "비극", "희극", "서사", "서정", "낭만", "실존",
-
-    # 6. 행동과 변화의 양상
     "꿈꾸다", "속이다", "가리다", "드러내다", "훔치다", "나누다", "합치다", "찢다", "붙이다", "태우다",
     "얼리다", "녹이다", "뚫다", "막다", "던지다", "받다", "밀다", "당기다", "오르다", "내리다",
     "뛰다", "걷다", "기어가다", "날다", "헤엄치다", "잠기다", "떠오르다", "가라앉다", "흔들리다", "멈추다",
@@ -117,8 +105,6 @@ WORD_POOL = [
     "가르치다", "돕다", "방해하다", "빌리다", "갚다", "사다", "팔다", "먹다", "마시다", "자다",
     "깨다", "울다", "웃다", "노래하다", "춤추다", "연주하다", "그리다", "쓰다", "읽다", "걷다",
     "달리다", "서다", "앉다", "눕다", "기대다", "안다", "업다", "잡다", "놓다", "쥐다",
-
-    # 7. 현대적 일상과 디지털 코드
     "알고리즘", "배터리 1%", "로딩 중", "블루스크린", "필터링", "해시태그", "언박싱", "좋아요", "스와이프", "스크롤",
     "하이퍼링크", "팝업창", "다크모드", "와이파이", "핫스팟", "클라우드", "에어드랍", "익명성", "가상화폐", "메타버스",
     "아바타", "증강현실", "인공지능", "챗봇", "갓생", "오운완", "루틴", "번아웃", "퇴사", "취준생",
@@ -129,8 +115,6 @@ WORD_POOL = [
     "월요병", "재택근무", "비대면", "랜선 연애", "홈트레이닝", "에코백", "제로 웨이스트", "젠트리피케이션", "공유 경제", "마감 임박",
     "한정판", "블랙 프라이데이", "알림 지옥", "넷플릭스 앤 칠", "스트리밍", "구독 서비스", "타임라인", "스포일러", "쿠키 영상", "멀티 페르소나",
     "프로필 사진", "상태 메시지", "유령 메시지", "읽음 사라짐", "잊혀질 권리", "디지털 포렌식", "딥페이크", "사이버 렉카", "도파민", "블로그",
-
-    # 8. 형용사적 감각과 질감
     "폭신한", "까칠한", "차가운", "뜨거운", "미끈거리는", "끈적이는", "단단한", "무른", "바스라지는", "투명한",
     "탁한", "선명한", "흐릿한", "번지는", "스며드는", "튕겨 나가는", "묵직한", "깃털 같은", "서늘한", "눅눅한",
     "건조한", "매끄러운", "투박한", "날카로운", "뭉툭함", "일렁이는", "고정된", "흔들리는", "아련한", "강렬한",
@@ -155,7 +139,8 @@ allowed_origins = [
 ]
 
 CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
-socketio = SocketIO(app, cors_allowed_origins=allowed_origins)
+# [수정] 모바일 연결 끊김 감지를 위해 ping interval/timeout 설정 추가 (5초 주기)
+socketio = SocketIO(app, cors_allowed_origins=allowed_origins, ping_interval=5, ping_timeout=5)
 
 # Redis 연결 설정
 redis_client = redis.Redis(
@@ -322,6 +307,7 @@ def handle_disconnect():
             room_raw = redis_client.get(room_key)
             if room_raw:
                 room_data = json.loads(room_raw)
+                # 방장이 나갔을 경우 방장 승계 로직
                 if room_data.get('host_id') == user_id:
                     remaining_ids = [uid for uid in redis_client.hkeys(users_key) if uid != user_id]
                     if remaining_ids:
@@ -334,6 +320,7 @@ def handle_disconnect():
                 room_key = get_room_key(room_id)
                 room_raw = redis_client.get(room_key)
                 
+                # 게임 중이면 AI로 전환 (새로고침 시 잠시 AI 상태가 되었다가 재접속 시 복구됨)
                 if room_raw and json.loads(room_raw)['status'] == 'playing':
                     user['is_ai'] = True
                     if "(AI)" not in user['username']:
@@ -343,6 +330,7 @@ def handle_disconnect():
                     update_room_users(room_id)
                     trigger_ai_check(room_id)
                 else:
+                    # 대기실에서는 그냥 삭제
                     redis_client.hdel(users_key, user_id)
                     update_room_users(room_id)
 
@@ -359,11 +347,18 @@ def handle_join_game(data):
     users_key = f"room:{room_id}:users"
     existing = redis_client.hget(users_key, user_id)
     
+    # [수정됨] 재접속 처리 로직 강화
     if existing:
         user_info = json.loads(existing)
+        # 이미 존재한다면 AI 상태 해제 및 제어권 회복
         user_info['is_ai'] = False
-        user_info['username'] = username 
+        user_info['username'] = username.replace(" (AI)", "") # AI 태그 제거한 원래 이름 복구
+        
+        # 만약 연결이 끊겨서 AI로 이름이 바뀌어 있었다면 알림
+        if "(AI)" in json.loads(existing).get('username', ''):
+             emit('notification', {'message': f"👋 {user_info['username']} 님이 돌아왔습니다!"}, room=room_id)
     else:
+        # 신규 입장
         user_info = {
             'user_id': user_id,
             'username': username,
@@ -377,10 +372,13 @@ def handle_join_game(data):
     redis_client.set(f"socket_map:{request.sid}", json.dumps({'room_id': room_id, 'user_id': user_id}))
     
     room_key = get_room_key(room_id)
-    room_data = json.loads(redis_client.get(room_key))
-    if not room_data.get('host_id'):
-        room_data['host_id'] = user_id
-        redis_client.set(room_key, json.dumps(room_data))
+    room_data_raw = redis_client.get(room_key)
+    if room_data_raw:
+        room_data = json.loads(room_data_raw)
+        # 방장이 없으면 현재 접속자를 방장으로 지정 (방장이 나가서 빈 자리가 된 경우 등)
+        if not room_data.get('host_id'):
+            room_data['host_id'] = user_id
+            redis_client.set(room_key, json.dumps(room_data))
 
     update_room_users(room_id)
     emit_game_state(room_id)
@@ -422,13 +420,11 @@ def handle_start_game(data):
         rounds_per_user = 2
 
     try:
-        # [수정됨] JSON 파일에서 카드 목록 읽기
         all_cards = []
         if os.path.exists(CARD_LIST_FILE):
             with open(CARD_LIST_FILE, 'r', encoding='utf-8') as f:
                 all_cards = json.load(f)
         else:
-            # card_list.json이 없으면 fallback으로 폴더 확인 (호환성)
             static_cards_path = os.path.join(os.path.dirname(__file__), 'static', 'cards')
             if os.path.exists(static_cards_path):
                 all_cards = [f for f in os.listdir(static_cards_path) 
