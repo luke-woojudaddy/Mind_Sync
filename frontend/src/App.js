@@ -1,19 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-// --- 전역 설정 및 소켓 초기화 ---
-const SOCKET_URL = 'https://api.lumiverselab.com';
-const API_URL = 'https://api.lumiverselab.com';
+// ==================================================================
+// [환경 변수 설정 - 수정됨]
+// 안전장치(try-catch, typeof process)를 제거했습니다.
+// 리액트 빌드 시스템(Webpack)은 'process.env.REACT_APP_API_URL'이라는 텍스트를 발견하면
+// 빌드 시점에 실제 값(예: "http://localhost:5050")으로 문자열 치환을 수행합니다.
+// ==================================================================
+const SERVER_URL = process.env.REACT_APP_API_URL || 'https://api.lumiverselab.com';
+
+// [디버깅] 현재 연결하려는 서버 주소를 브라우저 콘솔(F12)에 출력
+console.log(`🔌 Connecting to Server: ${SERVER_URL}`);
 
 // [속도 개선 1] WebSocket 강제 사용으로 초기 연결 딜레이 제거
-const socket = io(SOCKET_URL, {
+const socket = io(SERVER_URL, {
   transports: ['websocket'], 
   autoConnect: false,
 });
 
 // --- API 로직 통합 ---
 const createRoom = async (name) => {
-  const response = await fetch(`${API_URL}/api/rooms`, {
+  const response = await fetch(`${SERVER_URL}/api/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
@@ -23,7 +30,7 @@ const createRoom = async (name) => {
 };
 
 const joinRoom = async (roomId) => {
-  const response = await fetch(`${API_URL}/api/rooms/${roomId}/users`, {
+  const response = await fetch(`${SERVER_URL}/api/rooms/${roomId}/users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -60,15 +67,15 @@ const RulesModal = ({ onClose }) => (
             <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-6">📖 게임 규칙</h2>
             <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🎭 1. 이야기꾼의 턴</h3>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🃏 1. 이야기꾼의 턴</h3>
                     <p className="text-gray-400">이야기꾼은 자신의 카드 중 하나를 고르고, 그 카드와 어울리는 <span className="text-yellow-400 font-bold">'단어'</span>를 선택합니다.</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🃏 2. 다른 플레이어의 제출</h3>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🗳️ 2. 다른 플레이어의 제출</h3>
                     <p className="text-gray-400">나머지 플레이어들은 이야기꾼이 제시한 단어를 보고, 자신의 패에서 가장 비슷하다고 생각되는 카드를 냅니다.</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🗳️ 3. 투표</h3>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🔍 3. 투표</h3>
                     <p className="text-gray-400">모든 카드가 섞여서 공개됩니다. 플레이어들은 이야기꾼이 낸 카드가 무엇인지 추측하여 투표합니다. (자기 카드 투표 불가)</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl">
@@ -1058,7 +1065,6 @@ function App() {
                 )}
             </div>
 
-            {/* Hand (Cards) */}
             {['storyteller_choosing', 'audience_submitting'].includes(roomState.phase) && !(isStoryteller && confirmedCard) && (
                 <div className={`fixed bottom-0 left-0 w-full z-50 pointer-events-none transition-all duration-700 ease-in-out ${amISubmitted ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
                     <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-10 pb-6 px-4">
@@ -1090,7 +1096,6 @@ function App() {
                 </div>
             )}
 
-            {/* Zoom Modal (Glassmorphism applied) */}
             {zoomCard && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl select-none touch-none animate-fade-in" 
                     onClick={() => setZoomCard(null)}

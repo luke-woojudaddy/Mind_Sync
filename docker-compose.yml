@@ -6,9 +6,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: mindsync-backend
+    container_name: mindsync-backend-local
     ports:
-      - "5050:5000"
+      - "5050:5000"  # [유지] 맥북 5000번 포트 충돌 방지를 위해 5050 사용
     volumes:
       - ./backend:/app
       - /app/__pycache__
@@ -23,37 +23,36 @@ services:
       - mindsync-network
     restart: unless-stopped
 
-  # React 프론트엔드 서비스 (들여쓰기 수정됨)
+  # React 프론트엔드 서비스
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: mindsync-frontend
+    container_name: mindsync-frontend-local
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - HOST=0.0.0.0               # [필수] 외부 접속 허용
-      - CHOKIDAR_USEPOLLING=true   # 파일 변경 감지
-      - WATCHPACK_POLLING=true     # 파일 변경 감지 (보조)
-      # ▼ [중요] 아까 확인한 IP와 포트(5050) 적용
-      - REACT_APP_API_URL=http://192.168.0.43:5050
+      - HOST=0.0.0.0
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - REACT_APP_API_URL=https://api.lumiverselab.com
     depends_on:
       - backend
     networks:
       - mindsync-network
     restart: unless-stopped
 
-  # Redis 데이터베이스 서비스 (들여쓰기 수정됨)
+  # Redis 데이터베이스 서비스
   redis:
     image: redis:7-alpine
-    container_name: mindsync-redis
+    container_name: mindsync-redis-local
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - redis-data:/data  # [유지] 데이터 영속성 보장
     command: redis-server --appendonly yes
     networks:
       - mindsync-network

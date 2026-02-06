@@ -1,35 +1,25 @@
-# Dependencies
-node_modules/
-__pycache__/
-*.pyc
-.pyo
-.pyd
-
-# Environment
+# --- Local & Secrets (절대 올리지 않음) ---
 .env
-.env.local
-.env.*.local
-*.env
+docker-compose.override.yml
 
-# Build outputs
-build/
-dist/
-*.egg-info/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# --- OS Files ---
 .DS_Store
+Thumbs.db
 
-# Logs
-*.log
+# --- Python (Backend) ---
+__pycache__/
+*.py[cod]
+venv/
+env/
+backend/venv/
+backend/__pycache__/
+
+# --- Node.js (Frontend) ---
+node_modules/
+frontend/node_modules/
+build/
+frontend/build/
+.pnp
+.pnp.js
 npm-debug.log*
-
-# Testing
-coverage/
-.pytest_cache/
-
-# Docker
-.docker/
+yarn-debug.log*
