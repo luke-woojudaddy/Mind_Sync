@@ -734,24 +734,85 @@ function App() {
 
             {view === 'game' && roomState && (
                 <div className="w-full max-w-7xl p-2 flex flex-col h-full relative z-0">
-                    <div className="flex-none flex items-center justify-between bg-black/40 px-6 py-3 rounded-full backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-4 mx-2 mt-2">
+                    {/* [Mobile Top Bar] 2-Row Compact Layout */}
+                    <div className="md:hidden flex flex-col bg-black/40 px-4 py-3 rounded-[1.5rem] backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-2 mx-2 mt-2">
+                        {/* Row 1: Timer - Theme - Help */}
+                        <div className="flex items-center justify-between gap-2 w-full">
+                            {/* Left: Timer */}
+                            <div className="flex items-center gap-2 flex-none">
+                                <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border-[2px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
+                                    <span className="text-[8px] text-gray-400 -mb-0.5 font-bold">SEC</span>
+                                    <span className="text-sm font-black font-mono">{timeLeft}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] text-gray-500 font-bold tracking-widest text-left">RND</span>
+                                    <span className="text-sm font-bold text-white leading-none">{roomState.current_round}<span className="text-gray-600 text-[10px]">/{roomState.total_rounds}</span></span>
+                                </div>
+                            </div>
 
-                        <div className="flex items-center gap-4 min-w-0 w-1/4">
+                            {/* Center: Theme (Flexible) */}
+                            <div className="flex-1 min-w-0 flex justify-center px-1">
+                                {roomState.selected_word ? (
+                                    <div className="w-full flex flex-col items-center">
+                                        <span className="text-[8px] text-yellow-500/80 mb-0.5 block text-center font-bold tracking-widest uppercase">Theme</span>
+                                        <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-3 py-1.5 rounded-xl shadow-sm text-center w-full min-w-0 backdrop-blur-sm">
+                                            <span className="text-white font-extrabold text-base drop-shadow-md tracking-wide whitespace-normal break-keep leading-tight block line-clamp-2">{roomState.selected_word}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">
+                                        <span className="text-gray-400 text-xs italic flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
+                                            선정 중...
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right: Help */}
+                            <div className="flex-none">
+                                <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center border border-white/10 transition text-sm active:scale-95">❔</button>
+                            </div>
+                        </div>
+
+                        {/* Row 2: Players */}
+                        <div className="w-full border-t border-white/5 pt-2 flex justify-center">
+                            <div className="flex gap-2 overflow-x-auto py-1 px-2 no-scrollbar justify-center">
+                                {users.map(u => (
+                                    <div key={u.user_id} className="relative group flex-none">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-md
+                                    ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
+                                    ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-1 ring-offset-black' : ''}`}>
+                                            <span className="font-bold text-xs">{u.username.substr(0, 1)}</span>
+                                        </div>
+                                        {u.user_id === roomState.storyteller_id && <div className="absolute -top-1.5 -right-1 bg-yellow-400 rounded-full w-4 h-4 flex items-center justify-center text-[8px] shadow-sm border border-black z-20">👑</div>}
+                                        {(roomState.phase === 'voting' ? u.voted : u.submitted) && u.user_id !== roomState.storyteller_id && (
+                                            <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full w-3 h-3 flex items-center justify-center text-[7px] shadow-sm border border-black z-20 text-black font-bold">✓</div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* [Desktop Top Bar] Original Layout */}
+                    <div className="hidden md:flex flex-none flex-row items-center justify-between bg-black/40 px-6 py-3 rounded-full backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-4 mx-2 mt-2">
+                        <div className="flex items-center gap-4 min-w-0 w-1/4 justify-start">
                             <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-full border-[3px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
                                 <span className="text-[9px] text-gray-400 -mb-1 font-bold">SEC</span>
                                 <span className="text-lg font-black font-mono">{timeLeft}</span>
                             </div>
-                            <div className="flex flex-col hidden sm:flex">
-                                <span className="text-[9px] text-gray-500 font-bold tracking-widest">ROUND</span>
+                            <div className="flex flex-col">
+                                <span className="text-[9px] text-gray-500 font-bold tracking-widest text-left">ROUND</span>
                                 <span className="text-lg font-bold text-white leading-none">{roomState.current_round} <span className="text-gray-600 text-sm">/ {roomState.total_rounds}</span></span>
                             </div>
                         </div>
 
-                        <div className="flex flex-col items-center justify-center flex-1">
+                        <div className="flex flex-col items-center justify-center flex-1 w-full">
                             {roomState.selected_word ? (
-                                <div className="animate-fade-in-down transform transition-all hover:scale-105 cursor-default">
+                                <div className="animate-fade-in-down transform transition-all hover:scale-105 cursor-default w-full flex flex-col items-center">
                                     <span className="text-[10px] text-yellow-500/80 mb-1 block text-center font-bold tracking-widest uppercase">Theme</span>
-                                    <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-10 py-2 rounded-2xl shadow-[0_10px_20px_rgba(234,179,8,0.2)] text-center min-w-[200px] backdrop-blur-sm">
+                                    <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-10 py-2 rounded-2xl shadow-[0_10px_20px_rgba(234,179,8,0.2)] text-center w-full min-w-[200px] backdrop-blur-sm">
                                         <span className="text-white font-extrabold text-2xl drop-shadow-md tracking-wider">{roomState.selected_word}</span>
                                     </div>
                                 </div>
@@ -765,8 +826,8 @@ function App() {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-end gap-3 min-w-0 w-1/4">
-                            <div className="flex -space-x-3 hover:space-x-1 transition-all duration-300">
+                        <div className="flex items-center justify-end gap-3 w-full md:w-1/4 pt-0 border-none">
+                            <div className="flex gap-2 transition-all duration-300">
                                 {users.map(u => (
                                     <div key={u.user_id} className="relative group transition-all hover:-translate-y-2">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg
