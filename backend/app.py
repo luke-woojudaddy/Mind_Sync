@@ -518,20 +518,20 @@ def handle_disconnect():
             room_raw = redis_client.get(room_key)
             if room_raw:
                 room_data = json.loads(room_raw)
-                # 방장이 나갔을 경우 방장 승계 로직
-                if room_data.get('host_id') == user_id:
-                    remaining_ids = [uid for uid in redis_client.hkeys(users_key) if uid != user_id]
-                    if remaining_ids:
-                        room_data['host_id'] = remaining_ids[0]
-                        redis_client.set(room_key, json.dumps(room_data))
-                        emit('notification', {'message': '👑 방장이 변경되었습니다.'}, room=room_id)
+                # 방장이 나갔을 경우 방장 승계 로직 (여기서는 즉시 처리하지 않고 아래 sleep 후 처리로 위임)
+                # if room_data.get('host_id') == user_id:
+                #     remaining_ids = [uid for uid in redis_client.hkeys(users_key) if uid != user_id]
+                #     if remaining_ids:
+                #         room_data['host_id'] = remaining_ids[0]
+                #         redis_client.set(room_key, json.dumps(room_data))
+                #         emit('notification', {'message': '👑 방장이 변경되었습니다.'}, room=room_id)
 
             if user_json:
                 user = json.loads(user_json)
                 room_key = get_room_key(room_id)
                 room_raw = redis_client.get(room_key)
                 
-                # 게임 중이면 AI로 전환 (새로고침 시 잠시 AI 상태가 되었다가 재접속 시 복구됨)
+                # 게임 중이면 AI로 전환
                 if room_raw and json.loads(room_raw)['status'] == 'playing':
                     user['is_ai'] = True
                     if "(AI)" not in user['username']:
@@ -541,12 +541,42 @@ def handle_disconnect():
                     update_room_users(room_id)
                     trigger_ai_check(room_id)
                 else:
-                    # 대기실에서는 그냥 삭제
-                    redis_client.hdel(users_key, user_id)
-                    update_room_users(room_id)
+                    # [Lobby] 대기실에서는 즉시 삭제하지 않고 잠시 대기 (새로고침 지원)
+                    # 1. 연결 끊김 표시
+                    user['connected'] = False
+                    redis_client.hset(users_key, user_id, json.dumps(user))
+                    
+                    # 2. 3초 대기 (새로고침 시 재접속 시간 허용)
+                    socketio.sleep(3)
+                    
+                    # 3. 상태 다시 확인
+                    current_user_json = redis_client.hget(users_key, user_id)
+                    if current_user_json:
+                        current_user = json.loads(current_user_json)
+                        # 만약 재접속했으면(connected=True) 삭제하지 않음
+                        if current_user.get('connected', False):
+                            print(f"♻️ [Lobby] User {user['username']} reconnected via refresh. Skipping cleanup.")
+                            return
+
+                        # 여전히 끊겨있으면 삭제 진행
+                        redis_client.hdel(users_key, user_id)
+                        update_room_users(room_id)
+
+                        # 만약 방장이었다면 방장 승계 (삭제 후 남아있는 사람 중)
+                        room_data = json.loads(redis_client.get(room_key)) # 최신 데이터 조회
+                        if room_data.get('host_id') == user_id:
+                            remaining_ids = [uid for uid in redis_client.hkeys(users_key) if uid != user_id]
+                            if remaining_ids:
+                                room_data['host_id'] = remaining_ids[0]
+                                redis_client.set(room_key, json.dumps(room_data))
+                                emit('notification', {'message': '👑 방장이 변경되었습니다.'}, room=room_id)
+                            else:
+                                # 방에 아무도 없으면 방 삭제 고려 (여기선 단순 유지)
+                                pass
 
             redis_client.delete(user_map_key)
-            emit_game_state(room_id) 
+            if room_raw and json.loads(room_raw)['status'] == 'playing':
+                 emit_game_state(room_id) 
 
 @socketio.on('join_game')
 def handle_join_game(data):
@@ -568,6 +598,9 @@ def handle_join_game(data):
         # 만약 연결이 끊겨서 AI로 이름이 바뀌어 있었다면 알림
         if "(AI)" in json.loads(existing).get('username', ''):
              emit('notification', {'message': f"👋 {user_info['username']} 님이 돌아왔습니다!"}, room=room_id)
+        
+        # [Refresh Fix] 재접속 시 status 업데이트
+        user_info['connected'] = True
     else:
         # 신규 입장
         user_info = {
@@ -577,6 +610,7 @@ def handle_join_game(data):
             'score': 0,
             'hand': [],
             'is_ai': False,
+            'connected': True, # [Refresh Fix] 연결 상태 초기화
             'joined_at': time.time() # [Sort Fix] 입장 시간 기록
         }
     
