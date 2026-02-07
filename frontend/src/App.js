@@ -249,6 +249,12 @@ function App() {
     const touchEndX = useRef(null);
     const minSwipeDistance = 50;
 
+    // [New] Landing Page Scroll Ref
+    const infoSectionRef = useRef(null);
+    const scrollToInfo = () => {
+        infoSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
     useEffect(() => {
         let storedId = sessionStorage.getItem('mind_sync_user_id');
         if (!storedId) {
@@ -609,7 +615,7 @@ function App() {
     };
 
     return (
-        <div className="h-[100dvh] md:h-[100dvh] bg-[#0a0a1a] flex flex-col items-center justify-center text-white font-sans overflow-hidden relative selection:bg-pink-500 selection:text-white pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0 touch-pan-y scroll-smooth">
+        <div className="w-full bg-[#0a0a1a] overflow-x-hidden relative selection:bg-pink-500 selection:text-white touch-pan-y font-sans">
             {/* Background Animation & Effects */}
             <style>{`
         @keyframes float {
@@ -672,40 +678,7 @@ function App() {
         .animate-slide-left { animation: slideInLeft 0.3s ease-out forwards; }
       `}</style>
 
-            {/* [New] Dynamic Background Layer (Lobby Only) */}
-            {view === 'lobby' && (
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                    {/* Dark overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-[#0a0a1a]/80 z-10"></div>
 
-                    {/* Floating Cards */}
-                    {backgroundCards.map((card, index) => (
-                        <div
-                            key={index}
-                            className={`absolute opacity-30 ${index % 2 === 0 ? 'animate-float' : 'animate-float-delayed'}`}
-                            style={{
-                                top: `${Math.random() * 80 + 10}%`,
-                                left: `${Math.random() * 80 + 10}%`,
-                                width: `${Math.random() * 100 + 120}px`,
-                                transform: `rotate(${Math.random() * 40 - 20}deg)`,
-                                animationDelay: `${Math.random() * 5}s`,
-                                filter: 'blur(1px)' // Adding slight blur for depth
-                            }}
-                        >
-                            <img
-                                src={getExternalCardUrl(card)}
-                                alt="deco"
-                                className="w-full h-auto rounded-xl shadow-2xl"
-                                loading="lazy"
-                            />
-                        </div>
-                    ))}
-
-                    {/* Background Gradients/Blobs */}
-                    <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[100px] animate-blob mix-blend-screen"></div>
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] animate-blob delay-2000 mix-blend-screen"></div>
-                </div>
-            )}
 
             {/* [속도 개선] 로딩 오버레이 */}
             {isLoading && (
@@ -727,733 +700,833 @@ function App() {
             {showRules && <RulesModal onClose={() => setShowRules(false)} />}
             {isTutorialOpen && <TutorialModal onClose={() => setIsTutorialOpen(false)} />}
 
-            {view === 'lobby' && (
-                <div className="z-10 flex flex-col items-center w-full max-w-md px-6 animate-fade-in-up">
-                    {/* Title Section */}
-                    <div className="text-center mb-10">
-                        <h1 className="text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 drop-shadow-lg tracking-tighter">
-                            Mind Sync
-                        </h1>
-                        <h2 className="mt-4 text-xl md:text-2xl font-light text-white tracking-widest uppercase">
-                            그림으로 통하는 텔레파시
-                        </h2>
-                        <p className="mt-3 text-gray-400 text-sm font-medium">
-                            AI 그림을 보고 친구의 속마음을 맞혀보세요.<br />
-                            설치 없는 웹 보드게임!
-                        </p>
-                    </div>
+            {view === 'lobby' ? (
+                <>
+                    {/* [Section 1] Hero / Login Area */}
+                    <section className="min-h-screen w-full flex flex-col items-center justify-center relative">
+                        {/* Background Layer (Moved here for Hero) */}
+                        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                            {/* Dark overlay for better text contrast */}
+                            <div className="absolute inset-0 bg-[#0a0a1a]/80 z-10"></div>
 
-                    {/* Glassmorphism Login Box */}
-                    <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl relative overflow-hidden group hover:border-white/30 transition duration-500">
-                        {/* Shine Effect */}
-                        <div className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 group-hover:left-[100%] transition-all duration-1000 ease-in-out"></div>
-
-                        <div className="space-y-5 relative z-10">
-                            {/* Nickname Input */}
-                            <div>
-                                <label className="text-xs text-indigo-200 ml-2 font-bold uppercase tracking-wider mb-1 block">Nickname</label>
-                                <input
-                                    value={myName}
-                                    onChange={e => updateLocalName(e.target.value)}
-                                    className="w-full bg-black/50 border border-purple-500/30 rounded-xl p-4 text-white text-center font-bold text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/70 transition-all shadow-inner"
-                                    placeholder="닉네임을 입력하세요"
-                                />
-                            </div>
-
-                            {/* Create Room Button */}
-                            <button
-                                onClick={handleCreateRoom}
-                                disabled={isLoading}
-                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                <span>✨ 새로운 방 만들기</span>
-                            </button>
-
-                            {/* Divider */}
-                            <div className="relative py-2">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-600/50"></div></div>
-                                <div className="relative flex justify-center text-xs uppercase"><span className="bg-transparent px-2 text-gray-400 font-bold">OR JOIN</span></div>
-                            </div>
-
-                            {/* Join Room Input & Button */}
-                            <div className="flex gap-2">
-                                <input
-                                    value={roomInput}
-                                    onChange={e => setRoomInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-                                    className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
-                                    placeholder="입장 코드 4자리"
-                                />
-                                <button
-                                    onClick={handleJoinRoom}
-                                    disabled={isLoading}
-                                    className="bg-white/10 border border-white/10 px-6 rounded-xl hover:bg-white/20 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95 text-sm"
-                                >
-                                    입장
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer / Tutorial Trigger */}
-                    <div
-                        onClick={() => setIsTutorialOpen(true)}
-                        className="mt-8 text-gray-400 text-sm cursor-pointer hover:text-white transition flex items-center gap-2 group"
-                    >
-                        <span className="group-hover:animate-bounce">📖</span>
-                        <span className="underline decoration-gray-600 group-hover:decoration-white underline-offset-4">처음이신가요? 30초 만에 게임 배우기</span>
-                    </div>
-
-                    <p className="mt-4 text-[10px] text-gray-600 font-mono">
-                        v1.2.0 • Powered by Lumiverse Lab
-                    </p>
-                </div>
-            )}
-
-            {/* ... 나머지 부분은 기존과 동일 ... */}
-            {view === 'waiting' && (
-                <div className="text-center w-full max-w-4xl px-4 z-10">
-                    <div className="glass-card p-8 rounded-[2.5rem] mb-8 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500"></div>
-
-                        <h2 className="text-gray-400 text-xs font-bold tracking-[0.3em] mb-2 uppercase">Room Access Code</h2>
-                        <div className="relative inline-block group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                            <div className="relative text-7xl font-mono text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 font-extrabold tracking-widest mb-6 drop-shadow-sm p-2">
-                                {roomId}
-                            </div>
-                        </div>
-
-                        <div className="flex justify-center items-center gap-3 mb-10 max-w-xs mx-auto bg-black/30 p-2 rounded-2xl border border-white/5">
-                            <input
-                                value={myName}
-                                onChange={(e) => setMyName(e.target.value)}
-                                className="bg-transparent border-none text-center text-white w-full focus:outline-none font-bold text-lg"
-                            />
-                            <button onClick={handleUpdateProfile} className="bg-blue-600/80 hover:bg-blue-500 px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition shadow-lg">이름 변경</button>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 justify-center">
-                            {users.map(u => (
-                                <div key={u.user_id} className="flex flex-col items-center animate-fade-in-up group">
-                                    <div className={`relative w-20 h-20 rounded-3xl flex items-center justify-center text-3xl shadow-xl border border-white/10 mb-3 transition-transform group-hover:scale-110 group-hover:-translate-y-2
-                                ${u.user_id === myId
-                                            ? 'bg-gradient-to-br from-pink-500/80 to-purple-600/80 ring-4 ring-pink-500/20'
-                                            : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50'}`}>
-                                        <span className="drop-shadow-md">{u.username.substr(0, 1)}</span>
-                                        {u.user_id === roomState?.host_id && <div className="absolute -top-2 -right-2 bg-yellow-400 text-[10px] rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-black border-2 border-gray-900 z-10">👑</div>}
-                                        {isHost && u.user_id !== myId && (
-                                            <button
-                                                onClick={() => handleKickUser(u.user_id)}
-                                                className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-gray-900 z-20 hover:bg-red-600 transition"
-                                            >
-                                                ✕
-                                            </button>
-                                        )}
-                                    </div>
-                                    <span className={`font-bold text-sm px-3 py-1 rounded-full ${u.user_id === myId ? 'bg-pink-500/20 text-pink-200 border border-pink-500/30' : 'text-gray-400'}`}>
-                                        {u.username}
-                                    </span>
-                                </div>
-                            ))}
-
-                            {/* Add AI Button (Host Only) */}
-                            {roomState?.host_id === myId && users.length < 6 && (
+                            {/* Floating Cards */}
+                            {backgroundCards.map((card, index) => (
                                 <div
-                                    className="flex flex-col items-center justify-center opacity-70 hover:opacity-100 cursor-pointer transition-opacity group"
-                                    onClick={() => socket.emit('add_ai', { room_id: roomId, user_id: myId })}
+                                    key={index}
+                                    className={`absolute opacity-30 ${index % 2 === 0 ? 'animate-float' : 'animate-float-delayed'}`}
+                                    style={{
+                                        top: `${Math.random() * 80 + 10}%`,
+                                        left: `${Math.random() * 80 + 10}%`,
+                                        width: `${Math.random() * 100 + 120}px`,
+                                        transform: `rotate(${Math.random() * 40 - 20}deg)`,
+                                        animationDelay: `${Math.random() * 5}s`,
+                                        filter: 'blur(1px)' // Adding slight blur for depth
+                                    }}
                                 >
-                                    <div className="w-20 h-20 rounded-3xl border-2 border-dashed border-purple-400 flex items-center justify-center mb-3 bg-purple-500/10 group-hover:bg-purple-500/20 shadow-lg backdrop-blur-sm">
-                                        <span className="text-3xl text-purple-300 font-bold">+</span>
-                                    </div>
-                                    <span className="text-purple-300 font-bold text-xs bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">Add AI</span>
-                                </div>
-                            )}
-
-                            {/* Empty Slots Placeholder */}
-                            {[...Array(Math.max(0, 3 - users.length - (roomState?.host_id === myId ? 1 : 0)))].map((_, i) => (
-                                <div key={`empty-${i}`} className="flex flex-col items-center opacity-30">
-                                    <div className="w-20 h-20 rounded-3xl border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
-                                        <span className="text-2xl text-gray-600">+</span>
-                                    </div>
-                                    <span className="text-xs text-gray-600">Waiting...</span>
+                                    <img
+                                        src={getExternalCardUrl(card)}
+                                        alt="deco"
+                                        className="w-full h-auto rounded-xl shadow-2xl"
+                                        loading="lazy"
+                                    />
                                 </div>
                             ))}
-                        </div>
-                    </div>
 
-                    {isHost ? (
-                        <div className="animate-fade-in-up delay-100">
-                            <div className="mb-8 glass-card p-6 rounded-3xl max-w-sm mx-auto flex flex-col items-center">
-                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Game Settings</h3>
-                                <div className="flex items-center justify-between w-full bg-black/20 rounded-2xl p-2">
-                                    <button
-                                        onClick={() => setRoundsPerUser(Math.max(1, roundsPerUser - 1))}
-                                        className="w-12 h-12 rounded-xl bg-gray-700/50 hover:bg-gray-600 text-xl font-bold transition text-white"
-                                    >-</button>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-2xl font-bold text-white font-mono">{roundsPerUser}</span>
-                                        <span className="text-[10px] text-gray-500">인당 라운드</span>
-                                    </div>
-                                    <button
-                                        onClick={() => setRoundsPerUser(Math.min(5, roundsPerUser + 1))}
-                                        className="w-12 h-12 rounded-xl bg-gray-700/50 hover:bg-gray-600 text-xl font-bold transition text-white"
-                                    >+</button>
-                                </div>
-                                <p className="text-gray-500 text-xs mt-3">총 {users.length * roundsPerUser} 라운드가 진행됩니다.</p>
-                            </div>
-
-                            <button
-                                onClick={handleStartGame}
-                                disabled={users.length < 3}
-                                className={`w-full max-w-md py-5 rounded-2xl text-xl font-black tracking-widest shadow-2xl transition-all transform hover:-translate-y-1
-                            ${users.length >= 3
-                                        ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white hover:shadow-green-500/30'
-                                        : 'bg-gray-800 text-gray-600 cursor-not-allowed border border-white/5'}`}
-                            >
-                                {users.length < 3 ? `WAITING FOR PLAYERS (${users.length}/3)` : 'GAME START 🚀'}
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="glass-card px-8 py-6 rounded-2xl inline-block mt-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
-                                <span className="text-gray-300 font-bold animate-pulse">호스트가 게임을 설정하고 있습니다...</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {view === 'game' && roomState && (
-                <div className="w-full max-w-7xl p-2 flex flex-col h-full relative z-0">
-                    {/* [Mobile Top Bar] 2-Row Compact Layout */}
-                    <div className="md:hidden flex flex-col bg-black/40 px-4 py-3 rounded-[1.5rem] backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-2 mx-2 mt-2">
-                        {/* Row 1: Timer - Theme - Help */}
-                        <div className="flex items-center justify-between gap-2 w-full">
-                            {/* Left: Timer */}
-                            <div className="flex items-center gap-2 flex-none">
-                                <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border-[2px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
-                                    <span className="text-[8px] text-gray-400 -mb-0.5 font-bold">SEC</span>
-                                    <span className="text-sm font-black font-mono">{timeLeft}</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[8px] text-gray-500 font-bold tracking-widest text-left">RND</span>
-                                    <span className="text-sm font-bold text-white leading-none">{roomState.current_round}<span className="text-gray-600 text-[10px]">/{roomState.total_rounds}</span></span>
-                                </div>
-                            </div>
-
-                            {/* Center: Theme (Flexible) */}
-                            <div className="flex-1 min-w-0 flex justify-center px-1">
-                                {roomState.selected_word ? (
-                                    <div className="w-full flex flex-col items-center">
-                                        <span className="text-[8px] text-yellow-500/80 mb-0.5 block text-center font-bold tracking-widest uppercase">Theme</span>
-                                        <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-3 py-1.5 rounded-xl shadow-sm text-center w-full min-w-0 backdrop-blur-sm">
-                                            <span className="text-white font-extrabold text-base drop-shadow-md tracking-wide whitespace-normal break-keep leading-tight block line-clamp-2">{roomState.selected_word}</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">
-                                        <span className="text-gray-400 text-xs italic flex items-center gap-1">
-                                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
-                                            선정 중...
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Right: Help */}
-                            <div className="flex-none">
-                                <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center border border-white/10 transition text-sm active:scale-95">❔</button>
-                            </div>
+                            {/* Background Gradients/Blobs */}
+                            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[100px] animate-blob mix-blend-screen"></div>
+                            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] animate-blob delay-2000 mix-blend-screen"></div>
                         </div>
 
-                        {/* Row 2: Players */}
-                        <div className="w-full border-t border-white/5 pt-2 flex justify-center">
-                            <div className="flex gap-2 overflow-x-auto py-1 px-2 no-scrollbar justify-center">
-                                {users.map(u => (
-                                    <div key={u.user_id} className="relative group flex-none">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-md
-                                    ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
-                                    ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-1 ring-offset-black' : ''}`}>
-                                            <span className="font-bold text-xs">{u.username.substr(0, 1)}</span>
-                                        </div>
-                                        {u.user_id === roomState.storyteller_id && <div className="absolute -top-1.5 -right-1 bg-yellow-400 rounded-full w-4 h-4 flex items-center justify-center text-[8px] shadow-sm border border-black z-20">👑</div>}
-                                        {(roomState.phase === 'voting' ? u.voted : u.submitted) && u.user_id !== roomState.storyteller_id && (
-                                            <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full w-3 h-3 flex items-center justify-center text-[7px] shadow-sm border border-black z-20 text-black font-bold">✓</div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* [Desktop Top Bar] Original Layout */}
-                    <div className="hidden md:flex flex-none flex-row items-center justify-between bg-black/40 px-6 py-3 rounded-full backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-4 mx-2 mt-2">
-                        <div className="flex items-center gap-4 min-w-0 w-1/4 justify-start">
-                            <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-full border-[3px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
-                                <span className="text-[9px] text-gray-400 -mb-1 font-bold">SEC</span>
-                                <span className="text-lg font-black font-mono">{timeLeft}</span>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[9px] text-gray-500 font-bold tracking-widest text-left">ROUND</span>
-                                <span className="text-lg font-bold text-white leading-none">{roomState.current_round} <span className="text-gray-600 text-sm">/ {roomState.total_rounds}</span></span>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center flex-1 w-full">
-                            {roomState.selected_word ? (
-                                <div className="animate-fade-in-down transform transition-all hover:scale-105 cursor-default w-full flex flex-col items-center">
-                                    <span className="text-[10px] text-yellow-500/80 mb-1 block text-center font-bold tracking-widest uppercase">Theme</span>
-                                    <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-10 py-2 rounded-2xl shadow-[0_10px_20px_rgba(234,179,8,0.2)] text-center w-full min-w-[200px] backdrop-blur-sm">
-                                        <span className="text-white font-extrabold text-2xl drop-shadow-md tracking-wider">{roomState.selected_word}</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="bg-white/5 px-6 py-2 rounded-full border border-white/5">
-                                    <span className="text-gray-400 text-sm italic flex items-center gap-2">
-                                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
-                                        주제 선정 중...
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex items-center justify-end gap-3 w-full md:w-1/4 pt-0 border-none">
-                            <div className="flex gap-2 transition-all duration-300">
-                                {users.map(u => (
-                                    <div key={u.user_id} className="relative group transition-all hover:-translate-y-2">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg
-                                    ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
-                                    ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-2 ring-offset-black' : ''}`}>
-                                            <span className="font-bold text-sm">{u.username.substr(0, 1)}</span>
-                                        </div>
-                                        {u.user_id === roomState.storyteller_id && <div className="absolute -top-2 -right-1 bg-yellow-400 rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-sm border border-black z-20">👑</div>}
-                                        {(roomState.phase === 'voting' ? u.voted : u.submitted) && u.user_id !== roomState.storyteller_id && (
-                                            <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px] shadow-sm border border-black z-20 text-black font-bold">✓</div>
-                                        )}
-                                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-50 border border-white/10 shadow-xl">
-                                            <p className="font-bold text-pink-300">{u.username}</p>
-                                            <p>{u.score} Points</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-10 h-10 rounded-full flex items-center justify-center border border-white/10 transition text-lg active:scale-95">❔</button>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 w-full overflow-y-auto flex flex-col items-center relative py-2 scrollbar-hide">
-                        {roomState.phase === 'storyteller_choosing' && (
-                            <>
-                                {isStoryteller && !confirmedCard && (
-                                    <div className="text-center mt-12 animate-fade-in-up">
-                                        <h3 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300 mb-3">Your Turn, Storyteller</h3>
-                                        <p className="text-gray-400 text-base font-light tracking-wide">아래 덱에서 이야기를 시작할 카드를 선택해주세요.</p>
-                                    </div>
-                                )}
-                                {isStoryteller && confirmedCard && (
-                                    <div className="w-full h-fit flex flex-col md:flex-row items-center md:items-start justify-center gap-6 md:gap-12 px-6 max-w-6xl mx-auto pb-40 mt-8 animate-fade-in">
-                                        <div className="relative w-full max-w-[280px] sm:max-w-[320px] md:max-w-md flex-shrink-0">
-                                            <div className="relative group cursor-pointer perspective-1000" onClick={() => handleCardClick(confirmedCard)}>
-                                                <img
-                                                    src={confirmedCard.src}
-                                                    loading="lazy"
-                                                    className="w-full h-auto max-h-[35vh] md:max-h-[60vh] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[6px] border-white/10 object-contain bg-black/30 transition-transform duration-500 hover:rotate-y-6"
-                                                />
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setConfirmedCard(null); setSelectedWord(null); }}
-                                                    className="absolute -top-4 -right-4 bg-gray-800 text-white rounded-full p-3 border border-white/20 shadow-xl hover:bg-gray-700 transition z-10 transform hover:rotate-180 duration-300"
-                                                >
-                                                    🔄
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col items-center md:items-start w-full max-w-2xl">
-                                            <div className="mb-6 text-center md:text-left">
-                                                <h3 className="text-2xl md:text-4xl font-black text-white mb-2">단어 선택</h3>
-                                                <p className="text-gray-400 text-sm font-light">이미지의 느낌을 가장 잘 표현하는 단어는 무엇인가요?</p>
-                                            </div>
-
-                                            <div className="w-full bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md mb-6 shadow-2xl">
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Keywords</span>
-                                                    <button onClick={handleRefreshWords} disabled={roomState.reroll_count <= 0}
-                                                        className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 transition font-bold
-                                                    ${roomState.reroll_count > 0 ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20' : 'bg-gray-700/50 border-gray-600 text-gray-500 cursor-not-allowed'}`}>
-                                                        <span>🎲</span> 변경 ({roomState.reroll_count})
-                                                    </button>
-                                                </div>
-                                                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                                                    {roomState.word_candidates?.map((word) => (
-                                                        <button
-                                                            key={word}
-                                                            onClick={() => setSelectedWord(word)}
-                                                            className={`py-3 px-1 text-xs md:text-sm rounded-xl font-bold border transition-all duration-200 
-                                                        ${selectedWord === word
-                                                                    ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-transparent text-white shadow-lg scale-105 ring-2 ring-pink-300/50'
-                                                                    : 'bg-black/40 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
-                                                        >
-                                                            {word}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={handleSubmitStory}
-                                                disabled={!selectedWord}
-                                                className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl transition-all duration-300 relative overflow-hidden group
-                                            ${selectedWord
-                                                        ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:shadow-green-500/40 hover:-translate-y-1'
-                                                        : 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-white/5'}`}
-                                            >
-                                                {selectedWord && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>}
-                                                {selectedWord ? `"${selectedWord}" (으)로 결정하기` : '단어를 선택해주세요'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                                {!isStoryteller && (
-                                    <div className="flex flex-col items-center justify-center mt-32 animate-pulse">
-                                        <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 relative">
-                                            <div className="absolute inset-0 border-4 border-t-pink-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
-                                            <span className="text-4xl">🤔</span>
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-white mb-2">이야기꾼이 고민 중입니다...</h3>
-                                        <p className="text-gray-500">어떤 기상천외한 단어가 나올까요?</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {roomState.phase === 'audience_submitting' && (
-                            <div className="flex flex-col items-center justify-center w-full max-w-2xl mt-12 px-4 animate-fade-in-up">
-                                <div className="w-full glass-card p-10 rounded-[3rem] text-center shadow-2xl relative overflow-hidden border border-white/20 backdrop-blur-xl">
-                                    <div className="absolute -top-20 -left-20 w-60 h-60 bg-purple-500/20 rounded-full blur-3xl animate-blob opacity-60"></div>
-                                    <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-pink-500/20 rounded-full blur-3xl animate-blob delay-2000 opacity-60"></div>
-
-                                    {!isStoryteller && !amISubmitted ? (
-                                        <div className="relative z-10">
-                                            <h2 className="text-3xl font-black text-white mb-3">당신의 카드를 선택하세요!</h2>
-                                            <p className="text-gray-300 mb-8 font-light">주제 <span className="text-yellow-400 font-bold">"{roomState.selected_word}"</span> 와(과) 가장 잘 어울리는 이미지는?</p>
-
-                                            {targetSubmitCount > 1 && (
-                                                <div className="inline-block bg-white/10 text-pink-300 px-6 py-2 rounded-full text-sm font-bold border border-white/20 mb-6">
-                                                    {mySubmitCount} / {targetSubmitCount}장 제출됨
-                                                </div>
-                                            )}
-                                            <div className="flex justify-center">
-                                                <div className="animate-bounce bg-white/10 p-2 rounded-full border border-white/10 text-2xl">👇</div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="relative z-10">
-                                            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50">
-                                                <span className="text-3xl">✅</span>
-                                            </div>
-                                            <h2 className="text-2xl font-bold text-green-300 mb-2">제출 완료!</h2>
-                                            <p className="text-gray-400 text-sm mb-6">다른 플레이어들이 고민 중입니다...</p>
-                                            <div className="flex justify-center gap-1">
-                                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
-                                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
-                                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="mt-8 text-center max-w-md">
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-2 block font-bold">Game Tip</span>
-                                    <p className="text-gray-400 text-sm italic bg-black/40 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
-                                        "{currentTip}"
+                        {/* Login Box */}
+                        <div className="z-10 flex flex-col items-center w-full px-6 animate-fade-in-up">
+                            <div className="w-full max-w-md flex flex-col items-center">
+                                {/* Title Section */}
+                                <div className="text-center mb-10">
+                                    <h1 className="text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 drop-shadow-lg tracking-tighter">
+                                        Mind Sync
+                                    </h1>
+                                    <h2 className="mt-4 text-xl md:text-2xl font-light text-white tracking-widest uppercase">
+                                        그림으로 통하는 텔레파시
+                                    </h2>
+                                    <p className="mt-3 text-gray-400 text-sm font-medium">
+                                        AI 그림을 보고 친구의 속마음을 맞혀보세요.<br />
+                                        설치 없는 웹 보드게임!
                                     </p>
                                 </div>
-                            </div>
-                        )}
 
-                        {roomState.phase === 'voting' && (
-                            <div className="w-full flex flex-col items-center">
-                                <div className="text-center mb-8 animate-fade-in-down">
-                                    <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-2">
-                                        {isStoryteller ? "👀 투표 결과를 기다리는 중..." : amIVoted ? "✅ 투표 완료! 결과는?" : "🤔 정답을 찾아보세요!"}
-                                    </h2>
-                                    <p className="text-gray-400 text-sm font-light">이야기꾼의 카드는 무엇일까요?</p>
-                                </div>
-                                {(!roomState.voting_candidates || roomState.voting_candidates.length === 0) ? (
-                                    <div className="text-gray-400 animate-pulse mt-20">카드 섞는 중...</div>
-                                ) : (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 p-6 w-full max-w-7xl animate-fade-in-up">
-                                        {roomState.voting_candidates.map((card) => {
-                                            const isMyVoted = amIVoted && card.card_id === myVotedCardId;
-                                            return (
-                                                <div key={card.card_id} onClick={() => handleCardClick(card, true)}
-                                                    className={`relative aspect-[2/3] group cursor-pointer transition-all duration-500 ease-out
-                                            ${amIVoted ? (isMyVoted ? 'scale-105 z-10 ring-4 ring-blue-500 rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.5)]' : 'opacity-40 grayscale pointer-events-none') : 'hover:scale-105 hover:-translate-y-2 hover:shadow-2xl hover:z-10'} 
-                                            ${card.user_id === myId ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
-                                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl z-10"></div>
-                                                    <img
-                                                        src={card.card_src}
-                                                        loading="lazy"
-                                                        className="w-full h-full rounded-2xl shadow-xl object-cover border border-white/10 bg-gray-800"
-                                                    />
-                                                    {card.user_id === myId && (
-                                                        <div className="absolute inset-0 bg-black/70 rounded-2xl flex items-center justify-center backdrop-blur-[2px]">
-                                                            <span className="text-white font-bold border border-white/30 px-3 py-1.5 rounded-full text-xs bg-black/50">⛔ 내 카드</span>
-                                                        </div>
-                                                    )}
-                                                    {isMyVoted && <div className="absolute top-3 right-3 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-20 border border-blue-400">PICK ✅</div>}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                {/* Glassmorphism Login Box */}
+                                <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl relative overflow-hidden group hover:border-white/30 transition duration-500">
+                                    {/* Shine Effect */}
+                                    <div className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 group-hover:left-[100%] transition-all duration-1000 ease-in-out"></div>
 
-                        {roomState.phase === 'result' && (
-                            <div className="w-full flex flex-col items-center animate-fade-in-up pb-32">
-                                {resultMessage && (
-                                    <div className="mb-8 text-center animate-bounce-in mt-4">
-                                        <h3 className="text-xl md:text-3xl font-black text-white drop-shadow-lg bg-white/10 px-8 py-3 rounded-full border border-white/20 backdrop-blur-md shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                                            {resultMessage}
-                                        </h3>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-gray-500"></div>
-                                    <h2 className="text-2xl font-bold text-gray-300 uppercase tracking-widest">Round Results</h2>
-                                    <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-gray-500"></div>
-                                </div>
-
-                                <div className="flex flex-wrap justify-center gap-8 mb-10 w-full mt-4 px-4">
-                                    {roomState.round_results?.map((res, idx) => (
-                                        <div key={idx} className={`relative flex flex-col items-center group perspective-1000 ${res.is_storyteller ? 'order-first' : ''}`}>
-                                            {res.is_storyteller && (
-                                                <div className="absolute -top-6 z-20">
-                                                    <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-black px-4 py-1.5 rounded-full shadow-lg animate-bounce border-2 border-white">
-                                                        👑 정답 카드
-                                                    </span>
-                                                </div>
-                                            )}
-                                            <div className={`w-40 h-60 rounded-2xl overflow-hidden shadow-2xl border-4 bg-gray-900 mb-4 transition-transform duration-500 hover:rotate-y-12 hover:scale-105 relative
-                                        ${res.is_storyteller ? 'border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,0.3)]' : 'border-gray-700'}`}>
-                                                <img
-                                                    src={res.card_src}
-                                                    loading="lazy"
-                                                    className="w-full h-full object-cover"
-                                                    alt="result"
-                                                />
-                                                <div className="absolute bottom-0 left-0 w-full bg-black/70 backdrop-blur-sm p-2 text-center">
-                                                    <span className={`text-xs font-bold ${res.is_storyteller ? 'text-yellow-300' : 'text-white'}`}>{res.username}</span>
-                                                </div>
-                                            </div>
-
-                                            {res.voters && res.voters.length > 0 ? (
-                                                <div className="bg-black/40 rounded-xl p-3 border border-white/10 min-w-[120px] text-center backdrop-blur-sm">
-                                                    <span className="text-[10px] text-gray-400 mb-2 block uppercase tracking-wider font-bold">Voters</span>
-                                                    <div className="flex gap-1.5 flex-wrap justify-center">
-                                                        {res.voters.map((voterName, vIdx) => (
-                                                            <span key={vIdx} className="bg-blue-500/20 border border-blue-500/30 text-[10px] px-2 py-0.5 rounded-md text-blue-200 shadow-sm font-bold">
-                                                                {voterName}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ) : <div className="text-[10px] text-gray-600 italic mt-2">득표 없음</div>}
+                                    <div className="space-y-5 relative z-10">
+                                        {/* Nickname Input */}
+                                        <div>
+                                            <label className="text-xs text-indigo-200 ml-2 font-bold uppercase tracking-wider mb-1 block">Nickname</label>
+                                            <input
+                                                value={myName}
+                                                onChange={e => updateLocalName(e.target.value)}
+                                                className="w-full bg-black/50 border border-purple-500/30 rounded-xl p-4 text-white text-center font-bold text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/70 transition-all shadow-inner"
+                                                placeholder="닉네임을 입력하세요"
+                                            />
                                         </div>
-                                    ))}
+
+                                        {/* Create Room Button */}
+                                        <button
+                                            onClick={handleCreateRoom}
+                                            disabled={isLoading}
+                                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        >
+                                            <span>✨ 새로운 방 만들기</span>
+                                        </button>
+
+                                        {/* Divider */}
+                                        <div className="relative py-2">
+                                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-600/50"></div></div>
+                                            <div className="relative flex justify-center text-xs uppercase"><span className="bg-transparent px-2 text-gray-400 font-bold">OR JOIN</span></div>
+                                        </div>
+
+                                        {/* Join Room Input & Button */}
+                                        <div className="flex gap-2">
+                                            <input
+                                                value={roomInput}
+                                                onChange={e => setRoomInput(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                                                className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                                                placeholder="입장 코드 4자리"
+                                            />
+                                            <button
+                                                onClick={handleJoinRoom}
+                                                disabled={isLoading}
+                                                className="bg-white/10 border border-white/10 px-6 rounded-xl hover:bg-white/20 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95 text-sm"
+                                            >
+                                                입장
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="w-full max-w-3xl px-6 mb-8">
-                                    <h3 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider ml-1">Scoreboard</h3>
-                                    <div className="flex flex-col gap-3">
+                                {/* Footer / Tutorial Trigger */}
+                                <div
+                                    onClick={() => setIsTutorialOpen(true)}
+                                    className="mt-8 text-gray-400 text-sm cursor-pointer hover:text-white transition flex items-center gap-2 group"
+                                >
+                                    <span className="group-hover:animate-bounce">📖</span>
+                                    <span className="underline decoration-gray-600 group-hover:decoration-white underline-offset-4">처음이신가요? 30초 만에 게임 배우기</span>
+                                </div>
+
+                                <p className="mt-4 text-[10px] text-gray-600 font-mono">
+                                    v1.2.0 • Powered by Lumiverse Lab
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* [Scroll Hint] 화면 하단에 스크롤 유도 화살표 추가 */}
+                        <div
+                            onClick={scrollToInfo}
+                            className="absolute bottom-8 animate-bounce text-gray-400 z-10 cursor-pointer hover:text-white transition"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                        </div>
+                    </section>
+
+                    {/* [Section 2] SEO / Info Content */}
+                    <section ref={infoSectionRef} className="w-full py-24 bg-black/30 flex flex-col items-center justify-center text-center px-4 relative z-10">
+                        <div className="w-full max-w-5xl mx-auto space-y-24">
+                            <section className="space-y-6">
+                                <h3 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-indigo-200 to-purple-200">
+                                    상상력과 눈치의 심리전
+                                </h3>
+                                <div className="max-w-[800px] mx-auto space-y-6 text-gray-400 text-lg md:text-xl leading-relaxed font-light break-keep">
+                                    <p>
+                                        Mind Sync는 AI가 그려낸 몽환적인 그림을 보고 서로의 생각을 맞히는 웹 보드게임입니다.
+                                    </p>
+                                    <p>
+                                        '딕싯(Dixit)'과 같은 스토리텔링 게임을 좋아하시나요? 그렇다면 Mind Sync의 매력에도 푹 빠지실 겁니다.
+                                    </p>
+                                    <p>
+                                        설치나 카드 구매 없이, 링크 하나로 친구들과 즉시 심리전을 시작해보세요.
+                                    </p>
+                                </div>
+                            </section>
+
+                            <section className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+                                {[
+                                    { icon: "🎨", title: "무한한 AI 아트", desc: "AI가 창조한 몽환적이고 초현실적인 그림들이\n여러분의 상상력을 끊임없이 자극합니다." },
+                                    { icon: "🌐", title: "설치 없는 웹 게임", desc: "PC, 모바일 어디서든 링크만 있으면 접속 완료!\n3초 만에 바로 시작하세요." },
+                                    { icon: "🧠", title: "텔레파시 눈치 게임", desc: "뻔한 정답은 없습니다.\n오직 친구와의 교감만이 승리의 열쇠입니다." }
+                                ].map((feature, idx) => (
+                                    <div key={idx} className="bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition duration-300 hover:-translate-y-2 relative group overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition group-hover:bg-purple-500/20"></div>
+                                        <div className="text-4xl mb-6">{feature.icon}</div>
+                                        <h4 className="text-xl font-bold text-white mb-3">{feature.title}</h4>
+                                        <p className="text-gray-400 leading-relaxed whitespace-pre-line break-keep">{feature.desc}</p>
+                                    </div>
+                                ))}
+                            </section>
+
+                            <div className="pt-10 border-t border-white/10">
+                                <p className="text-gray-500 text-sm">
+                                    © 2024 Mind Sync • Powered by Lumiverse Lab
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                </>
+            ) : (
+                <main className="h-screen w-full overflow-hidden flex flex-col items-center justify-center relative pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0">
+
+                    {
+                        view === 'waiting' && (
+                            <div className="text-center w-full max-w-4xl px-4 z-10">
+                                <div className="glass-card p-8 rounded-[2.5rem] mb-8 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500"></div>
+
+                                    <h2 className="text-gray-400 text-xs font-bold tracking-[0.3em] mb-2 uppercase">Room Access Code</h2>
+                                    <div className="relative inline-block group">
+                                        <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                                        <div className="relative text-7xl font-mono text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 font-extrabold tracking-widest mb-6 drop-shadow-sm p-2">
+                                            {roomId}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-center items-center gap-3 mb-10 max-w-xs mx-auto bg-black/30 p-2 rounded-2xl border border-white/5">
+                                        <input
+                                            value={myName}
+                                            onChange={(e) => setMyName(e.target.value)}
+                                            className="bg-transparent border-none text-center text-white w-full focus:outline-none font-bold text-lg"
+                                        />
+                                        <button onClick={handleUpdateProfile} className="bg-blue-600/80 hover:bg-blue-500 px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition shadow-lg">이름 변경</button>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 justify-center">
                                         {users.map(u => (
-                                            <div key={u.user_id} className={`flex justify-between items-center px-6 py-4 rounded-2xl border transition-all duration-300
-                                        ${u.user_id === myId
-                                                    ? 'bg-gradient-to-r from-pink-900/40 to-purple-900/40 border-pink-500/40 shadow-lg transform scale-[1.02]'
-                                                    : 'bg-white/5 border-white/5'}`}>
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={`font-bold text-base ${u.user_id === myId ? 'text-pink-300' : 'text-gray-200'}`}>
-                                                            {u.username}
-                                                        </span>
-                                                        {u.user_id === myId && <span className="bg-pink-500 text-[9px] text-white px-1.5 rounded font-bold">ME</span>}
-                                                    </div>
-                                                    <span className="text-xs text-gray-500 italic mt-0.5">{u.last_score_reason || "대기 중"}</span>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    {u.last_gained_score > 0 && (
-                                                        <span className="text-sm font-bold text-green-400 animate-pulse-fast bg-green-400/10 px-2 py-0.5 rounded-lg border border-green-400/20">
-                                                            +{u.last_gained_score}
-                                                        </span>
+                                            <div key={u.user_id} className="flex flex-col items-center animate-fade-in-up group">
+                                                <div className={`relative w-20 h-20 rounded-3xl flex items-center justify-center text-3xl shadow-xl border border-white/10 mb-3 transition-transform group-hover:scale-110 group-hover:-translate-y-2
+                                ${u.user_id === myId
+                                                        ? 'bg-gradient-to-br from-pink-500/80 to-purple-600/80 ring-4 ring-pink-500/20'
+                                                        : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50'}`}>
+                                                    <span className="drop-shadow-md">{u.username.substr(0, 1)}</span>
+                                                    {u.user_id === roomState?.host_id && <div className="absolute -top-2 -right-2 bg-yellow-400 text-[10px] rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-black border-2 border-gray-900 z-10">👑</div>}
+                                                    {isHost && u.user_id !== myId && (
+                                                        <button
+                                                            onClick={() => handleKickUser(u.user_id)}
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-gray-900 z-20 hover:bg-red-600 transition"
+                                                        >
+                                                            ✕
+                                                        </button>
                                                     )}
-                                                    <span className="text-2xl font-black text-white font-mono">{u.score}</span>
                                                 </div>
+                                                <span className={`font-bold text-sm px-3 py-1 rounded-full ${u.user_id === myId ? 'bg-pink-500/20 text-pink-200 border border-pink-500/30' : 'text-gray-400'}`}>
+                                                    {u.username}
+                                                </span>
+                                            </div>
+                                        ))}
+
+                                        {/* Add AI Button (Host Only) */}
+                                        {roomState?.host_id === myId && users.length < 6 && (
+                                            <div
+                                                className="flex flex-col items-center justify-center opacity-70 hover:opacity-100 cursor-pointer transition-opacity group"
+                                                onClick={() => socket.emit('add_ai', { room_id: roomId, user_id: myId })}
+                                            >
+                                                <div className="w-20 h-20 rounded-3xl border-2 border-dashed border-purple-400 flex items-center justify-center mb-3 bg-purple-500/10 group-hover:bg-purple-500/20 shadow-lg backdrop-blur-sm">
+                                                    <span className="text-3xl text-purple-300 font-bold">+</span>
+                                                </div>
+                                                <span className="text-purple-300 font-bold text-xs bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">Add AI</span>
+                                            </div>
+                                        )}
+
+                                        {/* Empty Slots Placeholder */}
+                                        {[...Array(Math.max(0, 3 - users.length - (roomState?.host_id === myId ? 1 : 0)))].map((_, i) => (
+                                            <div key={`empty-${i}`} className="flex flex-col items-center opacity-30">
+                                                <div className="w-20 h-20 rounded-3xl border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
+                                                    <span className="text-2xl text-gray-600">+</span>
+                                                </div>
+                                                <span className="text-xs text-gray-600">Waiting...</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={handleNextRound}
-                                    disabled={resultDelayCount > 0}
-                                    className={`relative overflow-hidden font-black py-4 px-12 rounded-full text-lg shadow-2xl transition-all transform hover:-translate-y-1 mb-10
-                                ${resultDelayCount > 0
-                                            ? 'bg-gray-700 text-gray-500 cursor-wait border border-gray-600'
-                                            : 'bg-white text-black hover:bg-gray-100 hover:shadow-white/20'}`}
-                                >
-                                    {resultDelayCount > 0 ? (
-                                        <span className="flex items-center gap-2">
-                                            <span className="animate-spin text-xl">⏳</span>
-                                            <span>집계 중... {resultDelayCount}</span>
-                                        </span>
-                                    ) : (
-                                        <>{roomState.current_round >= roomState.total_rounds ? "🏆 최종 결과 보기" : "다음 라운드 진행 ➡️"}</>
-                                    )}
-                                </button>
-                            </div>
-                        )}
+                                {isHost ? (
+                                    <div className="animate-fade-in-up delay-100">
+                                        <div className="mb-8 glass-card p-6 rounded-3xl max-w-sm mx-auto flex flex-col items-center">
+                                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Game Settings</h3>
+                                            <div className="flex items-center justify-between w-full bg-black/20 rounded-2xl p-2">
+                                                <button
+                                                    onClick={() => setRoundsPerUser(Math.max(1, roundsPerUser - 1))}
+                                                    className="w-12 h-12 rounded-xl bg-gray-700/50 hover:bg-gray-600 text-xl font-bold transition text-white"
+                                                >-</button>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-2xl font-bold text-white font-mono">{roundsPerUser}</span>
+                                                    <span className="text-[10px] text-gray-500">인당 라운드</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setRoundsPerUser(Math.min(5, roundsPerUser + 1))}
+                                                    className="w-12 h-12 rounded-xl bg-gray-700/50 hover:bg-gray-600 text-xl font-bold transition text-white"
+                                                >+</button>
+                                            </div>
+                                            <p className="text-gray-500 text-xs mt-3">총 {users.length * roundsPerUser} 라운드가 진행됩니다.</p>
+                                        </div>
 
-                        {roomState.phase === 'game_over' && (
-                            <div className="text-center animate-fade-in-up mt-10 w-full flex flex-col items-center">
-                                <div className="mb-8 relative">
-                                    <div className="absolute -inset-10 bg-yellow-500/20 blur-3xl rounded-full animate-pulse"></div>
-                                    <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-orange-500 relative z-10 drop-shadow-sm">
-                                        {getGameOverMessage(users.sort((a, b) => b.score - a.score))}
-                                    </h2>
+                                        <button
+                                            onClick={handleStartGame}
+                                            disabled={users.length < 3}
+                                            className={`w-full max-w-md py-5 rounded-2xl text-xl font-black tracking-widest shadow-2xl transition-all transform hover:-translate-y-1
+                            ${users.length >= 3
+                                                    ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white hover:shadow-green-500/30'
+                                                    : 'bg-gray-800 text-gray-600 cursor-not-allowed border border-white/5'}`}
+                                        >
+                                            {users.length < 3 ? `WAITING FOR PLAYERS (${users.length}/3)` : 'GAME START 🚀'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="glass-card px-8 py-6 rounded-2xl inline-block mt-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
+                                            <span className="text-gray-300 font-bold animate-pulse">호스트가 게임을 설정하고 있습니다...</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    }
+
+                    {
+                        view === 'game' && roomState && (
+                            <div className="w-full max-w-7xl p-2 flex flex-col h-full relative z-0">
+                                {/* [Mobile Top Bar] 2-Row Compact Layout */}
+                                <div className="md:hidden flex flex-col bg-black/40 px-4 py-3 rounded-[1.5rem] backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-2 mx-2 mt-2">
+                                    {/* Row 1: Timer - Theme - Help */}
+                                    <div className="flex items-center justify-between gap-2 w-full">
+                                        {/* Left: Timer */}
+                                        <div className="flex items-center gap-2 flex-none">
+                                            <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border-[2px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
+                                                <span className="text-[8px] text-gray-400 -mb-0.5 font-bold">SEC</span>
+                                                <span className="text-sm font-black font-mono">{timeLeft}</span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] text-gray-500 font-bold tracking-widest text-left">RND</span>
+                                                <span className="text-sm font-bold text-white leading-none">{roomState.current_round}<span className="text-gray-600 text-[10px]">/{roomState.total_rounds}</span></span>
+                                            </div>
+                                        </div>
+
+                                        {/* Center: Theme (Flexible) */}
+                                        <div className="flex-1 min-w-0 flex justify-center px-1">
+                                            {roomState.selected_word ? (
+                                                <div className="w-full flex flex-col items-center">
+                                                    <span className="text-[8px] text-yellow-500/80 mb-0.5 block text-center font-bold tracking-widest uppercase">Theme</span>
+                                                    <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-3 py-1.5 rounded-xl shadow-sm text-center w-full min-w-0 backdrop-blur-sm">
+                                                        <span className="text-white font-extrabold text-base drop-shadow-md tracking-wide whitespace-normal break-keep leading-tight block line-clamp-2">{roomState.selected_word}</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">
+                                                    <span className="text-gray-400 text-xs italic flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
+                                                        선정 중...
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Right: Help */}
+                                        <div className="flex-none">
+                                            <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center border border-white/10 transition text-sm active:scale-95">❔</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 2: Players */}
+                                    <div className="w-full border-t border-white/5 pt-2 flex justify-center">
+                                        <div className="flex gap-2 overflow-x-auto py-1 px-2 no-scrollbar justify-center">
+                                            {users.map(u => (
+                                                <div key={u.user_id} className="relative group flex-none">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-md
+                                    ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
+                                    ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-1 ring-offset-black' : ''}`}>
+                                                        <span className="font-bold text-xs">{u.username.substr(0, 1)}</span>
+                                                    </div>
+                                                    {u.user_id === roomState.storyteller_id && <div className="absolute -top-1.5 -right-1 bg-yellow-400 rounded-full w-4 h-4 flex items-center justify-center text-[8px] shadow-sm border border-black z-20">👑</div>}
+                                                    {(roomState.phase === 'voting' ? u.voted : u.submitted) && u.user_id !== roomState.storyteller_id && (
+                                                        <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full w-3 h-3 flex items-center justify-center text-[7px] shadow-sm border border-black z-20 text-black font-bold">✓</div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="w-full max-w-md bg-black/40 p-1 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl mb-10 overflow-hidden">
-                                    {users.sort((a, b) => b.score - a.score).map((u, idx) => (
-                                        <div key={u.user_id} className={`flex justify-between items-center py-5 px-8 border-b border-white/5 last:border-0 relative overflow-hidden
-                                    ${idx === 0 ? 'bg-gradient-to-r from-yellow-500/10 to-transparent' : ''}`}>
-                                            <div className="flex items-center gap-5 relative z-10">
-                                                <div className={`w-12 h-12 flex items-center justify-center rounded-2xl font-black text-2xl
-                                            ${idx === 0 ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/30' :
-                                                        idx === 1 ? 'bg-gray-300 text-black' :
-                                                            idx === 2 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-500'}`}>
-                                                    {idx + 1}
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className={`font-bold text-lg ${idx === 0 ? 'text-yellow-200' : 'text-white'}`}>{u.username}</div>
-                                                    {u.user_id === myId && <div className="text-[10px] text-gray-500 font-bold tracking-wider">IT'S ME</div>}
+                                {/* [Desktop Top Bar] Original Layout */}
+                                <div className="hidden md:flex flex-none flex-row items-center justify-between bg-black/40 px-6 py-3 rounded-full backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-4 mx-2 mt-2">
+                                    <div className="flex items-center gap-4 min-w-0 w-1/4 justify-start">
+                                        <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-full border-[3px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
+                                            <span className="text-[9px] text-gray-400 -mb-1 font-bold">SEC</span>
+                                            <span className="text-lg font-black font-mono">{timeLeft}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] text-gray-500 font-bold tracking-widest text-left">ROUND</span>
+                                            <span className="text-lg font-bold text-white leading-none">{roomState.current_round} <span className="text-gray-600 text-sm">/ {roomState.total_rounds}</span></span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-center justify-center flex-1 w-full">
+                                        {roomState.selected_word ? (
+                                            <div className="animate-fade-in-down transform transition-all hover:scale-105 cursor-default w-full flex flex-col items-center">
+                                                <span className="text-[10px] text-yellow-500/80 mb-1 block text-center font-bold tracking-widest uppercase">Theme</span>
+                                                <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-10 py-2 rounded-2xl shadow-[0_10px_20px_rgba(234,179,8,0.2)] text-center w-full min-w-[200px] backdrop-blur-sm">
+                                                    <span className="text-white font-extrabold text-2xl drop-shadow-md tracking-wider">{roomState.selected_word}</span>
                                                 </div>
                                             </div>
-                                            <span className={`font-mono text-2xl font-bold relative z-10 ${idx === 0 ? 'text-yellow-400' : 'text-gray-400'}`}>{u.score}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <button onClick={handleBackToLobby} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-4 px-12 rounded-2xl transition hover:scale-105 active:scale-95">로비로 돌아가기</button>
-                            </div>
-                        )}
-                    </div>
+                                        ) : (
+                                            <div className="bg-white/5 px-6 py-2 rounded-full border border-white/5">
+                                                <span className="text-gray-400 text-sm italic flex items-center gap-2">
+                                                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
+                                                    주제 선정 중...
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
 
-                    {['storyteller_choosing', 'audience_submitting'].includes(roomState.phase) && !(isStoryteller && confirmedCard) && (
-                        <div className={`fixed bottom-0 left-0 w-full z-50 pointer-events-none transition-all duration-700 ease-in-out ${amISubmitted ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
-                            <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-10 pb-6 px-4">
-                                <div className="flex justify-center w-full">
-                                    <div className="flex gap-3 overflow-x-auto px-4 pb-8 h-64 items-end scrollbar-hide w-fit mx-auto max-w-full pointer-events-auto snap-x">
-                                        {myHand.map((card) => {
-                                            const isSubmittedLocal = mySubmittedCards.includes(card.id);
-                                            const isMyStoryCard = isStoryteller && roomState.storyteller_card_id === card.id;
-                                            return (
-                                                <div key={card.id} onClick={() => handleCardClick(card)}
-                                                    className={`snap-center flex-none w-[110px] h-36 bg-gray-800 rounded-xl cursor-pointer hover:-translate-y-6 hover:scale-110 transition-all duration-300 shadow-2xl border-2 overflow-hidden relative group 
+                                    <div className="flex items-center justify-end gap-3 w-full md:w-1/4 pt-0 border-none">
+                                        <div className="flex gap-2 transition-all duration-300">
+                                            {users.map(u => (
+                                                <div key={u.user_id} className="relative group transition-all hover:-translate-y-2">
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg
+                                    ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
+                                    ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-2 ring-offset-black' : ''}`}>
+                                                        <span className="font-bold text-sm">{u.username.substr(0, 1)}</span>
+                                                    </div>
+                                                    {u.user_id === roomState.storyteller_id && <div className="absolute -top-2 -right-1 bg-yellow-400 rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-sm border border-black z-20">👑</div>}
+                                                    {(roomState.phase === 'voting' ? u.voted : u.submitted) && u.user_id !== roomState.storyteller_id && (
+                                                        <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px] shadow-sm border border-black z-20 text-black font-bold">✓</div>
+                                                    )}
+                                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-50 border border-white/10 shadow-xl">
+                                                        <p className="font-bold text-pink-300">{u.username}</p>
+                                                        <p>{u.score} Points</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-10 h-10 rounded-full flex items-center justify-center border border-white/10 transition text-lg active:scale-95">❔</button>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 w-full overflow-y-auto flex flex-col items-center relative py-2 scrollbar-hide">
+                                    {roomState.phase === 'storyteller_choosing' && (
+                                        <>
+                                            {isStoryteller && !confirmedCard && (
+                                                <div className="text-center mt-12 animate-fade-in-up">
+                                                    <h3 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300 mb-3">Your Turn, Storyteller</h3>
+                                                    <p className="text-gray-400 text-base font-light tracking-wide">아래 덱에서 이야기를 시작할 카드를 선택해주세요.</p>
+                                                </div>
+                                            )}
+                                            {isStoryteller && confirmedCard && (
+                                                <div className="w-full h-fit flex flex-col md:flex-row items-center md:items-start justify-center gap-6 md:gap-12 px-6 max-w-6xl mx-auto pb-40 mt-8 animate-fade-in">
+                                                    <div className="relative w-full max-w-[280px] sm:max-w-[320px] md:max-w-md flex-shrink-0">
+                                                        <div className="relative group cursor-pointer perspective-1000" onClick={() => handleCardClick(confirmedCard)}>
+                                                            <img
+                                                                src={confirmedCard.src}
+                                                                loading="lazy"
+                                                                className="w-full h-auto max-h-[35vh] md:max-h-[60vh] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[6px] border-white/10 object-contain bg-black/30 transition-transform duration-500 hover:rotate-y-6"
+                                                            />
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setConfirmedCard(null); setSelectedWord(null); }}
+                                                                className="absolute -top-4 -right-4 bg-gray-800 text-white rounded-full p-3 border border-white/20 shadow-xl hover:bg-gray-700 transition z-10 transform hover:rotate-180 duration-300"
+                                                            >
+                                                                🔄
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-col items-center md:items-start w-full max-w-2xl">
+                                                        <div className="mb-6 text-center md:text-left">
+                                                            <h3 className="text-2xl md:text-4xl font-black text-white mb-2">단어 선택</h3>
+                                                            <p className="text-gray-400 text-sm font-light">이미지의 느낌을 가장 잘 표현하는 단어는 무엇인가요?</p>
+                                                        </div>
+
+                                                        <div className="w-full bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md mb-6 shadow-2xl">
+                                                            <div className="flex justify-between items-center mb-4">
+                                                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Keywords</span>
+                                                                <button onClick={handleRefreshWords} disabled={roomState.reroll_count <= 0}
+                                                                    className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 transition font-bold
+                                                    ${roomState.reroll_count > 0 ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20' : 'bg-gray-700/50 border-gray-600 text-gray-500 cursor-not-allowed'}`}>
+                                                                    <span>🎲</span> 변경 ({roomState.reroll_count})
+                                                                </button>
+                                                            </div>
+                                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                                                {roomState.word_candidates?.map((word) => (
+                                                                    <button
+                                                                        key={word}
+                                                                        onClick={() => setSelectedWord(word)}
+                                                                        className={`py-3 px-1 text-xs md:text-sm rounded-xl font-bold border transition-all duration-200 
+                                                        ${selectedWord === word
+                                                                                ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-transparent text-white shadow-lg scale-105 ring-2 ring-pink-300/50'
+                                                                                : 'bg-black/40 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
+                                                                    >
+                                                                        {word}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={handleSubmitStory}
+                                                            disabled={!selectedWord}
+                                                            className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl transition-all duration-300 relative overflow-hidden group
+                                            ${selectedWord
+                                                                    ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:shadow-green-500/40 hover:-translate-y-1'
+                                                                    : 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-white/5'}`}
+                                                        >
+                                                            {selectedWord && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>}
+                                                            {selectedWord ? `"${selectedWord}" (으)로 결정하기` : '단어를 선택해주세요'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {!isStoryteller && (
+                                                <div className="flex flex-col items-center justify-center mt-32 animate-pulse">
+                                                    <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 relative">
+                                                        <div className="absolute inset-0 border-4 border-t-pink-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
+                                                        <span className="text-4xl">🤔</span>
+                                                    </div>
+                                                    <h3 className="text-2xl font-bold text-white mb-2">이야기꾼이 고민 중입니다...</h3>
+                                                    <p className="text-gray-500">어떤 기상천외한 단어가 나올까요?</p>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {roomState.phase === 'audience_submitting' && (
+                                        <div className="flex flex-col items-center justify-center w-full max-w-2xl mt-12 px-4 animate-fade-in-up">
+                                            <div className="w-full glass-card p-10 rounded-[3rem] text-center shadow-2xl relative overflow-hidden border border-white/20 backdrop-blur-xl">
+                                                <div className="absolute -top-20 -left-20 w-60 h-60 bg-purple-500/20 rounded-full blur-3xl animate-blob opacity-60"></div>
+                                                <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-pink-500/20 rounded-full blur-3xl animate-blob delay-2000 opacity-60"></div>
+
+                                                {!isStoryteller && !amISubmitted ? (
+                                                    <div className="relative z-10">
+                                                        <h2 className="text-3xl font-black text-white mb-3">당신의 카드를 선택하세요!</h2>
+                                                        <p className="text-gray-300 mb-8 font-light">주제 <span className="text-yellow-400 font-bold">"{roomState.selected_word}"</span> 와(과) 가장 잘 어울리는 이미지는?</p>
+
+                                                        {targetSubmitCount > 1 && (
+                                                            <div className="inline-block bg-white/10 text-pink-300 px-6 py-2 rounded-full text-sm font-bold border border-white/20 mb-6">
+                                                                {mySubmitCount} / {targetSubmitCount}장 제출됨
+                                                            </div>
+                                                        )}
+                                                        <div className="flex justify-center">
+                                                            <div className="animate-bounce bg-white/10 p-2 rounded-full border border-white/10 text-2xl">👇</div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative z-10">
+                                                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50">
+                                                            <span className="text-3xl">✅</span>
+                                                        </div>
+                                                        <h2 className="text-2xl font-bold text-green-300 mb-2">제출 완료!</h2>
+                                                        <p className="text-gray-400 text-sm mb-6">다른 플레이어들이 고민 중입니다...</p>
+                                                        <div className="flex justify-center gap-1">
+                                                            <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
+                                                            <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
+                                                            <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="mt-8 text-center max-w-md">
+                                                <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-2 block font-bold">Game Tip</span>
+                                                <p className="text-gray-400 text-sm italic bg-black/40 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
+                                                    "{currentTip}"
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {roomState.phase === 'voting' && (
+                                        <div className="w-full flex flex-col items-center">
+                                            <div className="text-center mb-8 animate-fade-in-down">
+                                                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-2">
+                                                    {isStoryteller ? "👀 투표 결과를 기다리는 중..." : amIVoted ? "✅ 투표 완료! 결과는?" : "🤔 정답을 찾아보세요!"}
+                                                </h2>
+                                                <p className="text-gray-400 text-sm font-light">이야기꾼의 카드는 무엇일까요?</p>
+                                            </div>
+                                            {(!roomState.voting_candidates || roomState.voting_candidates.length === 0) ? (
+                                                <div className="text-gray-400 animate-pulse mt-20">카드 섞는 중...</div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 p-6 w-full max-w-7xl animate-fade-in-up">
+                                                    {roomState.voting_candidates.map((card) => {
+                                                        const isMyVoted = amIVoted && card.card_id === myVotedCardId;
+                                                        return (
+                                                            <div key={card.card_id} onClick={() => handleCardClick(card, true)}
+                                                                className={`relative aspect-[2/3] group cursor-pointer transition-all duration-500 ease-out
+                                            ${amIVoted ? (isMyVoted ? 'scale-105 z-10 ring-4 ring-blue-500 rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.5)]' : 'opacity-40 grayscale pointer-events-none') : 'hover:scale-105 hover:-translate-y-2 hover:shadow-2xl hover:z-10'} 
+                                            ${card.user_id === myId ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                                                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl z-10"></div>
+                                                                <img
+                                                                    src={card.card_src}
+                                                                    loading="lazy"
+                                                                    className="w-full h-full rounded-2xl shadow-xl object-cover border border-white/10 bg-gray-800"
+                                                                />
+                                                                {card.user_id === myId && (
+                                                                    <div className="absolute inset-0 bg-black/70 rounded-2xl flex items-center justify-center backdrop-blur-[2px]">
+                                                                        <span className="text-white font-bold border border-white/30 px-3 py-1.5 rounded-full text-xs bg-black/50">⛔ 내 카드</span>
+                                                                    </div>
+                                                                )}
+                                                                {isMyVoted && <div className="absolute top-3 right-3 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-20 border border-blue-400">PICK ✅</div>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {roomState.phase === 'result' && (
+                                        <div className="w-full flex flex-col items-center animate-fade-in-up pb-32">
+                                            {resultMessage && (
+                                                <div className="mb-8 text-center animate-bounce-in mt-4">
+                                                    <h3 className="text-xl md:text-3xl font-black text-white drop-shadow-lg bg-white/10 px-8 py-3 rounded-full border border-white/20 backdrop-blur-md shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                                                        {resultMessage}
+                                                    </h3>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center gap-4 mb-8">
+                                                <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-gray-500"></div>
+                                                <h2 className="text-2xl font-bold text-gray-300 uppercase tracking-widest">Round Results</h2>
+                                                <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-gray-500"></div>
+                                            </div>
+
+                                            <div className="flex flex-wrap justify-center gap-8 mb-10 w-full mt-4 px-4">
+                                                {roomState.round_results?.map((res, idx) => (
+                                                    <div key={idx} className={`relative flex flex-col items-center group perspective-1000 ${res.is_storyteller ? 'order-first' : ''}`}>
+                                                        {res.is_storyteller && (
+                                                            <div className="absolute -top-6 z-20">
+                                                                <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-black px-4 py-1.5 rounded-full shadow-lg animate-bounce border-2 border-white">
+                                                                    👑 정답 카드
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className={`w-40 h-60 rounded-2xl overflow-hidden shadow-2xl border-4 bg-gray-900 mb-4 transition-transform duration-500 hover:rotate-y-12 hover:scale-105 relative
+                                        ${res.is_storyteller ? 'border-yellow-400 shadow-[0_0_40px_rgba(234,179,8,0.3)]' : 'border-gray-700'}`}>
+                                                            <img
+                                                                src={res.card_src}
+                                                                loading="lazy"
+                                                                className="w-full h-full object-cover"
+                                                                alt="result"
+                                                            />
+                                                            <div className="absolute bottom-0 left-0 w-full bg-black/70 backdrop-blur-sm p-2 text-center">
+                                                                <span className={`text-xs font-bold ${res.is_storyteller ? 'text-yellow-300' : 'text-white'}`}>{res.username}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {res.voters && res.voters.length > 0 ? (
+                                                            <div className="bg-black/40 rounded-xl p-3 border border-white/10 min-w-[120px] text-center backdrop-blur-sm">
+                                                                <span className="text-[10px] text-gray-400 mb-2 block uppercase tracking-wider font-bold">Voters</span>
+                                                                <div className="flex gap-1.5 flex-wrap justify-center">
+                                                                    {res.voters.map((voterName, vIdx) => (
+                                                                        <span key={vIdx} className="bg-blue-500/20 border border-blue-500/30 text-[10px] px-2 py-0.5 rounded-md text-blue-200 shadow-sm font-bold">
+                                                                            {voterName}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : <div className="text-[10px] text-gray-600 italic mt-2">득표 없음</div>}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="w-full max-w-3xl px-6 mb-8">
+                                                <h3 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider ml-1">Scoreboard</h3>
+                                                <div className="flex flex-col gap-3">
+                                                    {users.map(u => (
+                                                        <div key={u.user_id} className={`flex justify-between items-center px-6 py-4 rounded-2xl border transition-all duration-300
+                                        ${u.user_id === myId
+                                                                ? 'bg-gradient-to-r from-pink-900/40 to-purple-900/40 border-pink-500/40 shadow-lg transform scale-[1.02]'
+                                                                : 'bg-white/5 border-white/5'}`}>
+                                                            <div className="flex flex-col">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`font-bold text-base ${u.user_id === myId ? 'text-pink-300' : 'text-gray-200'}`}>
+                                                                        {u.username}
+                                                                    </span>
+                                                                    {u.user_id === myId && <span className="bg-pink-500 text-[9px] text-white px-1.5 rounded font-bold">ME</span>}
+                                                                </div>
+                                                                <span className="text-xs text-gray-500 italic mt-0.5">{u.last_score_reason || "대기 중"}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-3">
+                                                                {u.last_gained_score > 0 && (
+                                                                    <span className="text-sm font-bold text-green-400 animate-pulse-fast bg-green-400/10 px-2 py-0.5 rounded-lg border border-green-400/20">
+                                                                        +{u.last_gained_score}
+                                                                    </span>
+                                                                )}
+                                                                <span className="text-2xl font-black text-white font-mono">{u.score}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={handleNextRound}
+                                                disabled={resultDelayCount > 0}
+                                                className={`relative overflow-hidden font-black py-4 px-12 rounded-full text-lg shadow-2xl transition-all transform hover:-translate-y-1 mb-10
+                                ${resultDelayCount > 0
+                                                        ? 'bg-gray-700 text-gray-500 cursor-wait border border-gray-600'
+                                                        : 'bg-white text-black hover:bg-gray-100 hover:shadow-white/20'}`}
+                                            >
+                                                {resultDelayCount > 0 ? (
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="animate-spin text-xl">⏳</span>
+                                                        <span>집계 중... {resultDelayCount}</span>
+                                                    </span>
+                                                ) : (
+                                                    <>{roomState.current_round >= roomState.total_rounds ? "🏆 최종 결과 보기" : "다음 라운드 진행 ➡️"}</>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {roomState.phase === 'game_over' && (
+                                        <div className="text-center animate-fade-in-up mt-10 w-full flex flex-col items-center">
+                                            <div className="mb-8 relative">
+                                                <div className="absolute -inset-10 bg-yellow-500/20 blur-3xl rounded-full animate-pulse"></div>
+                                                <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-orange-500 relative z-10 drop-shadow-sm">
+                                                    {getGameOverMessage(users.sort((a, b) => b.score - a.score))}
+                                                </h2>
+                                            </div>
+
+                                            <div className="w-full max-w-md bg-black/40 p-1 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl mb-10 overflow-hidden">
+                                                {users.sort((a, b) => b.score - a.score).map((u, idx) => (
+                                                    <div key={u.user_id} className={`flex justify-between items-center py-5 px-8 border-b border-white/5 last:border-0 relative overflow-hidden
+                                    ${idx === 0 ? 'bg-gradient-to-r from-yellow-500/10 to-transparent' : ''}`}>
+                                                        <div className="flex items-center gap-5 relative z-10">
+                                                            <div className={`w-12 h-12 flex items-center justify-center rounded-2xl font-black text-2xl
+                                            ${idx === 0 ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/30' :
+                                                                    idx === 1 ? 'bg-gray-300 text-black' :
+                                                                        idx === 2 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-500'}`}>
+                                                                {idx + 1}
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <div className={`font-bold text-lg ${idx === 0 ? 'text-yellow-200' : 'text-white'}`}>{u.username}</div>
+                                                                {u.user_id === myId && <div className="text-[10px] text-gray-500 font-bold tracking-wider">IT'S ME</div>}
+                                                            </div>
+                                                        </div>
+                                                        <span className={`font-mono text-2xl font-bold relative z-10 ${idx === 0 ? 'text-yellow-400' : 'text-gray-400'}`}>{u.score}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button onClick={handleBackToLobby} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-4 px-12 rounded-2xl transition hover:scale-105 active:scale-95">로비로 돌아가기</button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {['storyteller_choosing', 'audience_submitting'].includes(roomState.phase) && !(isStoryteller && confirmedCard) && (
+                                    <div className={`fixed bottom-0 left-0 w-full z-50 pointer-events-none transition-all duration-700 ease-in-out ${amISubmitted ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+                                        <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-10 pb-6 px-4">
+                                            <div className="flex justify-center w-full">
+                                                <div className="flex gap-3 overflow-x-auto px-4 pb-8 h-64 items-end scrollbar-hide w-fit mx-auto max-w-full pointer-events-auto snap-x">
+                                                    {myHand.map((card) => {
+                                                        const isSubmittedLocal = mySubmittedCards.includes(card.id);
+                                                        const isMyStoryCard = isStoryteller && roomState.storyteller_card_id === card.id;
+                                                        return (
+                                                            <div key={card.id} onClick={() => handleCardClick(card)}
+                                                                className={`snap-center flex-none w-[110px] h-36 bg-gray-800 rounded-xl cursor-pointer hover:-translate-y-6 hover:scale-110 transition-all duration-300 shadow-2xl border-2 overflow-hidden relative group 
                                             ${confirmedCard?.id === card.id ? 'opacity-50 grayscale scale-95' : 'border-white/10 hover:border-pink-400 hover:shadow-pink-500/30'} 
                                             ${isSubmittedLocal ? 'opacity-40 border-green-500' : ''}
                                             ${isMyStoryCard ? 'ring-4 ring-yellow-500 opacity-70' : ''}`}>
-                                                    <img
-                                                        src={card.src}
-                                                        loading="lazy"
-                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                    />
-                                                    {isSubmittedLocal && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"><span className="text-3xl font-bold">✅</span></div>}
-                                                    {isMyStoryCard && <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm"><span className="text-2xl">📖</span><span className="text-[9px] text-yellow-300 font-bold mt-1 uppercase tracking-wider">Selected</span></div>}
-                                                    {card.is_new && <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg shadow-md animate-pulse z-10">NEW</div>}
+                                                                <img
+                                                                    src={card.src}
+                                                                    loading="lazy"
+                                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                                />
+                                                                {isSubmittedLocal && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"><span className="text-3xl font-bold">✅</span></div>}
+                                                                {isMyStoryCard && <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm"><span className="text-2xl">📖</span><span className="text-[9px] text-yellow-300 font-bold mt-1 uppercase tracking-wider">Selected</span></div>}
+                                                                {card.is_new && <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg shadow-md animate-pulse z-10">NEW</div>}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {zoomCard && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl select-none touch-none animate-fade-in"
-                            onClick={() => setZoomCard(null)}
-                            onTouchStart={onTouchStart}
-                            onTouchMove={onTouchMove}
-                            onTouchEnd={onTouchEnd}
-                        >
-                            <div className="relative w-full h-full flex flex-col items-center justify-center p-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-
-                                {roomState.selected_word && (
-                                    <div className="flex-none z-[130] animate-fade-in-down pointer-events-none mb-4">
-                                        <div className="bg-black/40 px-8 py-3 rounded-full border border-white/10 backdrop-blur-md shadow-2xl flex flex-col items-center">
-                                            <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Current Theme</span>
-                                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-orange-200 font-black text-2xl tracking-wider">"{roomState.selected_word}"</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="flex-1 w-full max-w-6xl min-h-0 flex items-center justify-center pointer-events-none relative">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handlePrevZoom(); }}
-                                        className="hidden sm:block absolute left-4 z-[120] p-4 bg-white/5 hover:bg-white/10 rounded-full text-3xl transition backdrop-blur-md border border-white/10 pointer-events-auto text-white/70 hover:text-white"
+                                {zoomCard && (
+                                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl select-none touch-none animate-fade-in"
+                                        onClick={() => setZoomCard(null)}
+                                        onTouchStart={onTouchStart}
+                                        onTouchMove={onTouchMove}
+                                        onTouchEnd={onTouchEnd}
                                     >
-                                        <span className="block transform scale-x-[-1]">➜</span>
-                                    </button>
+                                        <div className="relative w-full h-full flex flex-col items-center justify-center p-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-                                    <div className="relative w-full max-w-lg h-full flex items-center justify-center aspect-[2/3] pointer-events-auto perspective-1000">
-                                        <img
-                                            key={zoomCard.id || zoomCard.card_id}
-                                            src={zoomCard.src || zoomCard.card_src}
-                                            loading="lazy"
-                                            className={`w-auto h-auto max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] pointer-events-none transition-all duration-300 ${slideDirection > 0 ? 'animate-slide-right' : slideDirection < 0 ? 'animate-slide-left' : ''}`}
-                                        />
-                                        {mySubmittedCards.includes(zoomCard.id) && !zoomCard.isVotingCandidate && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-3xl backdrop-blur-sm">
-                                                <div className="text-green-400 font-bold text-5xl border-4 border-green-400 rounded-full w-28 h-28 flex items-center justify-center animate-bounce shadow-[0_0_20px_rgba(74,222,128,0.5)]">
-                                                    ✓
+                                            {roomState.selected_word && (
+                                                <div className="flex-none z-[130] animate-fade-in-down pointer-events-none mb-4">
+                                                    <div className="bg-black/40 px-8 py-3 rounded-full border border-white/10 backdrop-blur-md shadow-2xl flex flex-col items-center">
+                                                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Current Theme</span>
+                                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-orange-200 font-black text-2xl tracking-wider">"{roomState.selected_word}"</span>
+                                                    </div>
                                                 </div>
+                                            )}
+
+                                            <div className="flex-1 w-full max-w-6xl min-h-0 flex items-center justify-center pointer-events-none relative">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handlePrevZoom(); }}
+                                                    className="hidden sm:block absolute left-4 z-[120] p-4 bg-white/5 hover:bg-white/10 rounded-full text-3xl transition backdrop-blur-md border border-white/10 pointer-events-auto text-white/70 hover:text-white"
+                                                >
+                                                    <span className="block transform scale-x-[-1]">➜</span>
+                                                </button>
+
+                                                <div className="relative w-full max-w-lg h-full flex items-center justify-center aspect-[2/3] pointer-events-auto perspective-1000">
+                                                    <img
+                                                        key={zoomCard.id || zoomCard.card_id}
+                                                        src={zoomCard.src || zoomCard.card_src}
+                                                        loading="lazy"
+                                                        className={`w-auto h-auto max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] pointer-events-none transition-all duration-300 ${slideDirection > 0 ? 'animate-slide-right' : slideDirection < 0 ? 'animate-slide-left' : ''}`}
+                                                    />
+                                                    {mySubmittedCards.includes(zoomCard.id) && !zoomCard.isVotingCandidate && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-3xl backdrop-blur-sm">
+                                                            <div className="text-green-400 font-bold text-5xl border-4 border-green-400 rounded-full w-28 h-28 flex items-center justify-center animate-bounce shadow-[0_0_20px_rgba(74,222,128,0.5)]">
+                                                                ✓
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleNextZoom(); }}
+                                                    className="hidden sm:block absolute right-4 z-[120] p-4 bg-white/5 hover:bg-white/10 rounded-full text-3xl transition backdrop-blur-md border border-white/10 pointer-events-auto text-white/70 hover:text-white"
+                                                >
+                                                    ➜
+                                                </button>
                                             </div>
-                                        )}
+
+                                            <div className="flex-none z-[120] w-full max-w-md px-4 flex flex-col sm:flex-row justify-center gap-4 mt-6 pointer-events-auto">
+                                                <button onClick={() => setZoomCard(null)} className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-black/50 hover:bg-black/70 border border-white/20 font-bold backdrop-blur-md transition text-white/80 hover:text-white shadow-lg">닫기</button>
+                                                {((isStoryteller && !confirmedCard && roomState.phase === 'storyteller_choosing' && !zoomCard.isVotingCandidate) ||
+                                                    (!isStoryteller && !amISubmitted && roomState.phase === 'audience_submitting' && !zoomCard.isVotingCandidate && !mySubmittedCards.includes(zoomCard.id))) && (
+                                                        <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-[1.02] font-black text-lg shadow-xl transition border border-white/20 active:scale-95">
+                                                            {isStoryteller ? '이 카드로 결정! 🎯' : (targetSubmitCount > 1 ? `제출 (${mySubmitCount + 1}/${targetSubmitCount})` : '이 카드로 제출! 🔥')}
+                                                        </button>
+                                                    )}
+
+                                                {(!isStoryteller && roomState.phase === 'audience_submitting' && !zoomCard.isVotingCandidate && mySubmittedCards.includes(zoomCard.id)) && (
+                                                    <button disabled className="w-full sm:flex-1 py-4 rounded-2xl bg-gray-700/50 text-gray-500 font-bold shadow-xl cursor-not-allowed border border-gray-600/50">
+                                                        제출 완료됨
+                                                    </button>
+                                                )}
+
+                                                {(!isStoryteller && !amIVoted && roomState.phase === 'voting' && zoomCard.isVotingCandidate && zoomCard.user_id !== myId) && (
+                                                    <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:scale-[1.02] font-black text-lg shadow-xl transition animate-pulse border border-white/20">🗳️ 이게 정답이다!</button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleNextZoom(); }}
-                                        className="hidden sm:block absolute right-4 z-[120] p-4 bg-white/5 hover:bg-white/10 rounded-full text-3xl transition backdrop-blur-md border border-white/10 pointer-events-auto text-white/70 hover:text-white"
-                                    >
-                                        ➜
-                                    </button>
-                                </div>
-
-                                <div className="flex-none z-[120] w-full max-w-md px-4 flex flex-col sm:flex-row justify-center gap-4 mt-6 pointer-events-auto">
-                                    <button onClick={() => setZoomCard(null)} className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-black/50 hover:bg-black/70 border border-white/20 font-bold backdrop-blur-md transition text-white/80 hover:text-white shadow-lg">닫기</button>
-                                    {((isStoryteller && !confirmedCard && roomState.phase === 'storyteller_choosing' && !zoomCard.isVotingCandidate) ||
-                                        (!isStoryteller && !amISubmitted && roomState.phase === 'audience_submitting' && !zoomCard.isVotingCandidate && !mySubmittedCards.includes(zoomCard.id))) && (
-                                            <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-[1.02] font-black text-lg shadow-xl transition border border-white/20 active:scale-95">
-                                                {isStoryteller ? '이 카드로 결정! 🎯' : (targetSubmitCount > 1 ? `제출 (${mySubmitCount + 1}/${targetSubmitCount})` : '이 카드로 제출! 🔥')}
-                                            </button>
-                                        )}
-
-                                    {(!isStoryteller && roomState.phase === 'audience_submitting' && !zoomCard.isVotingCandidate && mySubmittedCards.includes(zoomCard.id)) && (
-                                        <button disabled className="w-full sm:flex-1 py-4 rounded-2xl bg-gray-700/50 text-gray-500 font-bold shadow-xl cursor-not-allowed border border-gray-600/50">
-                                            제출 완료됨
-                                        </button>
-                                    )}
-
-                                    {(!isStoryteller && !amIVoted && roomState.phase === 'voting' && zoomCard.isVotingCandidate && zoomCard.user_id !== myId) && (
-                                        <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:scale-[1.02] font-black text-lg shadow-xl transition animate-pulse border border-white/20">🗳️ 이게 정답이다!</button>
-                                    )}
-                                </div>
+                                )}
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )
+                    }
+                </main>
             )}
         </div>
     );

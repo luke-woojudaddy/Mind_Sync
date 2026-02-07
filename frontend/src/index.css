@@ -2,11 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
   /* Prevent bounce effect on iOS */
-  overscroll-behavior: none; 
+  overscroll-behavior: none;
 }
