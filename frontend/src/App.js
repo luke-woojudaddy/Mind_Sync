@@ -477,7 +477,7 @@ function App() {
     };
 
     return (
-        <div className="min-h-[100dvh] md:h-[100dvh] bg-[#0a0a1a] flex flex-col items-center justify-center text-white font-sans overflow-x-hidden overflow-y-auto md:overflow-hidden relative selection:bg-pink-500 selection:text-white pb-10 md:pb-0">
+        <div className="min-h-[100dvh] md:h-[100dvh] bg-[#0a0a1a] flex flex-col items-center justify-center text-white font-sans overflow-x-hidden overflow-y-auto md:overflow-hidden relative selection:bg-pink-500 selection:text-white pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0">
             {/* Background Animation & Effects */}
             <style>{`
         @keyframes blob-bounce { 
