@@ -221,67 +221,247 @@ def emit_game_state(room_id):
         'users': users_list
     }, room=room_id)
 
+# --- AI Engine 초기화 ---
+from ai_engine import AIEngine
+
+print("⏳ [App] Initializing AI Engine...")
+ai_engine = AIEngine(
+    card_list_file=CARD_LIST_FILE,
+    static_cards_path=os.path.join(os.path.dirname(__file__), 'static', 'cards'),
+    word_pool=WORD_POOL,
+    external_image_url=EXTERNAL_IMAGE_URL
+)
+
 # --- AI Logic ---
 def trigger_ai_check(room_id):
-    socketio.sleep(1.5) 
+    # socketio.sleep(1.5) # 디버깅을 위해 잠시 주석 처리 or 짧게
+    socketio.sleep(0.5)
 
+    print(f"🔍 [Debug] Triggering AI Check for Room {room_id}", flush=True)
     room_key = get_room_key(room_id)
     raw_room = redis_client.get(room_key)
-    if not raw_room: return
+    if not raw_room: 
+        print(f"   [Debug] Room {room_id} not found in Redis.", flush=True)
+        return
     room_data = json.loads(raw_room)
     
-    if room_data['status'] != 'playing': return
+    print(f"   [Debug] Status: {room_data.get('status')}, Phase: {room_data.get('phase')}", flush=True)
+
+    # [Zombie Fix] AI 실행 시점의 목표 라운드와 페이즈를 고정 (NameError 방지)
+    target_phase = room_data.get('phase')
+    target_round = room_data.get('current_round', 1)
+
+    if room_data['status'] != 'playing': 
+        print("   [Debug] Game not playing. Skipping AI check.", flush=True)
+        return
 
     users_key = f"room:{room_id}:users"
     users_map = {uid: json.loads(data) for uid, data in redis_client.hgetall(users_key).items()}
-    ai_users = [u for u in users_map.values() if u.get('is_ai')]
+    
+    # AI 유저 필터링 로직 강화
+    ai_users = []
+    print(f"   [Debug] Checking {len(users_map)} users...", flush=True)
+    for uid, u in users_map.items():
+        is_ai_val = u.get('is_ai')
+        is_ai_bool = str(is_ai_val).lower() == 'true'
+        if is_ai_bool:
+            ai_users.append(u)
+        print(f"      - User {u.get('username')} ({uid}): is_ai={is_ai_val} (Type: {type(is_ai_val)}) -> Parsed: {is_ai_bool}", flush=True)
 
+    print(f"   [Debug] Found {len(ai_users)} AI users.", flush=True)
+    
     phase = room_data['phase']
     storyteller_id = room_data['storyteller_id']
 
     if phase == 'storyteller_choosing':
-        if users_map.get(storyteller_id, {}).get('is_ai'):
-            ai_hand = users_map[storyteller_id]['hand']
+        storyteller_user = users_map.get(storyteller_id, {})
+        is_storyteller_ai = str(storyteller_user.get('is_ai')).lower() == 'true'
+        
+        if is_storyteller_ai:
+            print(f"   [Debug] Storyteller {storyteller_user.get('username')} is AI. Executing logic...")
+            ai_hand = storyteller_user.get('hand', [])
             if ai_hand:
+                # 1. 카드는 랜덤 선택 (다양성을 위해)
                 selected_card = random.choice(ai_hand)
-                selected_word = random.choice(room_data['word_candidates'])
                 
+                # 2. 단어 선택 (Smart Reroll Logic)
+                final_word = None
+                reroll_attempts = 0
+                max_rerolls = 3
+                
+                while reroll_attempts < max_rerolls:
+                    word_candidates = room_data['word_candidates']
+                    # 분석: (단어, 리롤필요여부)
+                    chosen, should_reroll = ai_engine.analyze_storyteller_candidates(selected_card['id'], word_candidates)
+                    
+                    if not should_reroll and chosen:
+                        final_word = chosen
+                        break
+                    
+                    # 리롤 필요한 경우
+                    print(f"🎲 [AI Storyteller] Rerolling candidates... (Attempt {reroll_attempts+1}/{max_rerolls})")
+                    room_data['word_candidates'] = random.sample(WORD_POOL, min(10, len(WORD_POOL)))
+                     # Redis 업데이트 (클라이언트 동기화는 굳이 안 해도 됨, 어차피 AI 내부 결정 과정임)
+                    reroll_attempts += 1
+                
+                # 리롤 다 써도 못 찾으면 -> 현재 후보 중 가장 나은 것(analyze가 None 리턴했을 경우 대비)
+                if not final_word:
+                    # analyze가 None을 반환했다면 리롤 추천 상황 -> 현재 후보 중 Top 1 강제 선택 로직 필요하지만
+                    # 편의상 analyze 함수가 fallback으로 None을 줄 수도 있으므로 다시 호출하거나 랜덤
+                    # 여기서는 그냥 현재 후보 중 랜덤 (혹은 가장 높은 점수) 안전장치
+                    print("⚠️ [AI Storyteller] Max rerolls reached. Picking random.")
+                    final_word = random.choice(room_data['word_candidates'])
+
+                # 최종 결정된 단어 후보군을 Redis 저장 (리롤 했다면 바뀌었으므로)
+                redis_client.set(room_key, json.dumps(room_data))
+
                 handle_submit_story({
                     'room_id': room_id,
                     'card_id': selected_card['id'],
-                    'word': selected_word,
+                    'word': final_word,
                     'user_id': storyteller_id 
                 }, is_internal=True)
 
     elif phase == 'audience_submitting':
+        print("   [Debug] Phase is audience_submitting. Checking AI submissions...")
+        selected_word = room_data.get('selected_word')
+        target_limit = int(room_data.get('audience_card_limit', 1))
+
         for u in ai_users:
             if u['user_id'] == storyteller_id: continue
-            if u['submitted']: continue 
+            
+            submitted_count = u.get('submitted_count', 0)
+            if submitted_count >= target_limit:
+                print(f"      - {u['username']} alread submitted {submitted_count}/{target_limit} cards. Skipping.")
+                continue 
+            
+            print(f"      - Processing submission for {u['username']} ({submitted_count}/{target_limit})...")
 
-            available_hand = u['hand']
-            if available_hand:
-                pick = random.choice(available_hand)
-                handle_submit_card({
-                    'room_id': room_id,
-                    'user_id': u['user_id'],
-                    'card_id': pick['id'],
-                    'card_src': pick['src'],
-                    'username': u['username']
-                }, is_internal=True)
+            # [Feature] 인간적인 딜레이 추가 (너무 빠르면 어색함)
+            delay = random.uniform(2.0, 4.0)
+            socketio.sleep(delay)
+
+            # [Zombie Fix] 딜레이 후 상태 검증 (라운드/페이즈 변경 시 종료)
+            curr_room = json.loads(redis_client.get(room_key))
+            if curr_room['phase'] != target_phase or curr_room.get('current_round') != target_round:
+                print(f"🛑 [AI Kill Switch] Zombie process detected (Target: {target_phase}/{target_round}, Actual: {curr_room['phase']}/{curr_room.get('current_round')}). Stopping.")
+                return
+
+            cards_to_submit = target_limit - submitted_count
+            available_hand = u['hand'][:] # 복사본 생성 (원본 보존)
+            
+            # 이미 제출된 카드가 있다면 hand에서 제외해야 함 (재접속/중간 재실행 시 중복 방지)
+            submission_key = f"room:{room_id}:submissions"
+            existing_subs = [json.loads(s) for s in redis_client.hvals(submission_key) if json.loads(s)['user_id'] == u['user_id']]
+            submitted_card_ids = set(s['card_id'] for s in existing_subs)
+            available_hand = [c for c in available_hand if c['id'] not in submitted_card_ids]
+
+            while cards_to_submit > 0 and available_hand:
+                try:
+                    # AI가 제시어와 가장 비슷한 카드를 선택
+                    best_card_id = None
+                    if selected_word:
+                        best_card_id = ai_engine.get_best_card(selected_word, available_hand)
+                    
+                    pick = None
+                    if not best_card_id:
+                        print(f"⚠️ [AI Audience] Could not find best card for word '{selected_word}'. Picking random.")
+                        pick = random.choice(available_hand)
+                    else:
+                        # src 찾기
+                        pick = next((c for c in available_hand if c['id'] == best_card_id), None)
+                        if not pick:
+                            print(f"⚠️ [AI Audience] Best card ID {best_card_id} not in hand. Picking random.")
+                            pick = random.choice(available_hand)
+
+                    handle_submit_card({
+                        'room_id': room_id,
+                        'user_id': u['user_id'],
+                        'card_id': pick['id'],
+                        'card_src': pick['src'],
+                        'username': u['username']
+                    }, is_internal=True)
+                    print(f"🤖 [AI Audience] {u['username']} submitted card {pick['id']} for '{selected_word}'")
+                    
+                    # [Critical Fix] 제출한 카드는 로컬 핸드 목록에서 제거 (중복 제출 방지)
+                    available_hand = [c for c in available_hand if c['id'] != pick['id']]
+                    cards_to_submit -= 1
+
+                    # [Race Condition Fix] 페이즈가 변경되었는지 즉시 확인
+                    # 만약 다른 프로세스/스레드에 의해 이미 투표 단계로 넘어갔다면, 더 이상 제출하지 말고 종료
+                    updated_room = json.loads(redis_client.get(room_key))
+                    if updated_room['phase'] != 'audience_submitting':
+                        print(f"🛑 [Debug] Phase changed to {updated_room['phase']} during AI submission. Stopping AI check.", flush=True)
+                        return
+
+                except Exception as e:
+                    print(f"❌ [AI Error] Audience submission failed for {u['username']}: {e}")
+                    # 치명적 오류 시에도 랜덤 제출 시도 (게임 진행 보장)
+                    try:
+                        pick = random.choice(available_hand)
+                        handle_submit_card({
+                            'room_id': room_id,
+                            'user_id': u['user_id'],
+                            'card_id': pick['id'],
+                            'card_src': pick['src'],
+                            'username': u['username']
+                        }, is_internal=True)
+                        print(f"⚠️ [AI Audience] Recovered with random submission for {u['username']}")
+                        available_hand = [c for c in available_hand if c['id'] != pick['id']]
+                        cards_to_submit -= 1
+                        
+                        # [Race Condition Fix] 오류 복구 후에도 페이즈 체크
+                        updated_room = json.loads(redis_client.get(room_key))
+                        if updated_room['phase'] != 'audience_submitting':
+                            print(f"🛑 [Debug] Phase changed during AI fallback. Stopping.", flush=True)
+                            return
+
+                    except:
+                        pass
 
     elif phase == 'voting':
+        selected_word = room_data.get('selected_word')
         voting_candidates = room_data.get('voting_candidates', [])
+        
         for u in ai_users:
             if u['user_id'] == storyteller_id: continue
             if u.get('voted'): continue
 
-            valid_targets = [c for c in voting_candidates if c['user_id'] != u['user_id']]
-            if valid_targets:
-                pick = random.choice(valid_targets)
+            # 내 카드는 제외하고 투표해야 함 (voting_candidates에는 내 카드가 포함되어 있을 수 있음)
+            # 서버 로직상 본인 카드 투표 방지는 handle_submit_vote 내부에는 없으므로(클라이언트가 막음), AI도 걸러줘야 함
+            # 하지만 voting_candidates는 익명화된 상태라 user_id가 있음.
+            
+            # [Feature] 투표 고민하는 척 딜레이
+            delay = random.uniform(3.0, 6.0)
+            socketio.sleep(delay)
+
+            # [Zombie Fix] 딜레이 후 상태 검증
+            curr_room = json.loads(redis_client.get(room_key))
+            if curr_room['phase'] != target_phase or curr_room.get('current_round') != target_round:
+                 print(f"🛑 [AI Kill Switch] Zombie process detected during voting. Stopping.")
+                 return
+
+            # 본인이 낸 카드 ID 찾기
+            my_submission_key = f"room:{room_id}:submissions"
+            submissions_map = redis_client.hgetall(my_submission_key)
+            my_card_id = None
+            for cid, sub_json in submissions_map.items():
+                sub = json.loads(sub_json)
+                if sub['user_id'] == u['user_id']:
+                    my_card_id = cid
+                    break
+            
+            # [Fix] 본인 카드는 투표 후보에서 제외
+            valid_candidates = [c for c in voting_candidates if c['user_id'] != u['user_id']]
+
+            # AI가 정답(혹은 가장 유사한 카드)을 추론
+            target_card_id = ai_engine.get_voted_card(selected_word, valid_candidates, my_card_id=my_card_id)
+            
+            if target_card_id:
                 handle_submit_vote({
                     'room_id': room_id,
                     'user_id': u['user_id'],
-                    'card_id': pick['card_id']
+                    'card_id': target_card_id
                 }, is_internal=True)
 
 # --- Socket Events ---
@@ -397,6 +577,45 @@ def handle_update_profile(data):
         redis_client.hset(users_key, user_id, json.dumps(user))
         update_room_users(room_id)
 
+@socketio.on('add_ai')
+def handle_add_ai(data):
+    room_id = data.get('room_id')
+    requester_id = data.get('user_id')
+    
+    room_key = get_room_key(room_id)
+    room_data = json.loads(redis_client.get(room_key))
+    
+    # 권한 체크: 방장만 가능
+    if room_data.get('host_id') != requester_id:
+        return
+        
+    users_key = f"room:{room_id}:users"
+    if redis_client.hlen(users_key) >= 6: # 최대 인원 제한
+        return
+
+    ai_names = ["AlphaGo", "Jarvis", "Hal-9000", "Skynet", "GLaDOS", "T-800", "Wall-E"]
+    ai_id = f"ai_{uuid.uuid4().hex[:6]}"
+    ai_name = random.choice(ai_names)
+    
+    # 중복 이름 방지
+    current_users = [json.loads(u) for u in redis_client.hvals(users_key)]
+    existing_names = set(u['username'] for u in current_users)
+    while ai_name in existing_names:
+         ai_name = random.choice(ai_names) + f"_{random.randint(1,9)}"
+
+    ai_user = {
+        'user_id': ai_id,
+        'username': f"{ai_name} (AI)",
+        'ready': True,  # AI는 항상 준비됨
+        'score': 0,
+        'hand': [],
+        'is_ai': True
+    }
+    
+    redis_client.hset(users_key, ai_id, json.dumps(ai_user))
+    update_room_users(room_id)
+    emit('notification', {'message': f"🤖 AI 플레이어 '{ai_name}'가 추가되었습니다."}, room=room_id)
+
 @socketio.on('refresh_words')
 def handle_refresh_words(data):
     room_id = data.get('room_id')
@@ -413,6 +632,7 @@ def handle_refresh_words(data):
 
 @socketio.on('start_game')
 def handle_start_game(data):
+    print(f"🎮 [Debug] Received start_game event: {data}", flush=True)
     room_id = data.get('room_id')
     try:
         rounds_per_user = int(data.get('rounds_per_user', 2))
@@ -458,7 +678,12 @@ def handle_start_game(data):
             user['submitted_count'] = 0
             user['submitted'] = False
             user['voted'] = False
-            user['is_ai'] = False 
+            # [Fix] AI 상태 보존 (기존에는 False로 초기화해버려서 AI가 일반 유저가 됨)
+            # user['is_ai'] = False  <-- This was the bug
+            # 만약 is_ai 키가 없다면 False로, 있다면 그대로 유지
+            if 'is_ai' not in user:
+                user['is_ai'] = False
+            
             redis_client.hset(users_key, uid, json.dumps(user))
 
         room_key = get_room_key(room_id)
@@ -487,7 +712,7 @@ def handle_start_game(data):
             trigger_ai_check(room_id)
 
     except Exception as e:
-        print(f"🔥 Error in start_game: {e}")
+        print(f"🔥 Error in start_game: {e}", flush=True)
 
 @socketio.on('submit_story')
 def handle_submit_story(data, is_internal=False):
@@ -525,6 +750,22 @@ def handle_submit_card(data, is_internal=False):
     user_id = data.get('user_id')
     card_id = data.get('card_id')
     
+    # [Fix] 먼저 유저 상태와 제출 제한을 확인하여 초과 제출 방지
+    users_key = f"room:{room_id}:users"
+    user_json = redis_client.hget(users_key, user_id)
+    if not user_json: return
+    user = json.loads(user_json)
+
+    room_key = get_room_key(room_id)
+    room_data = json.loads(redis_client.get(room_key))
+    target = int(room_data.get('audience_card_limit', 1))
+
+    current_count = user.get('submitted_count', 0)
+    if current_count >= target:
+        print(f"⚠️ [Debug] User {user['username']} tried to submit extra card ({current_count}/{target}). Ignored.", flush=True)
+        return
+
+    # 제출 처리 진행
     submission_key = f"room:{room_id}:submissions"
     sub_data = {
         'user_id': user_id,
@@ -535,13 +776,7 @@ def handle_submit_card(data, is_internal=False):
     }
     redis_client.hset(submission_key, card_id, json.dumps(sub_data))
     
-    users_key = f"room:{room_id}:users"
-    user = json.loads(redis_client.hget(users_key, user_id))
-    user['submitted_count'] = user.get('submitted_count', 0) + 1
-    
-    room_key = get_room_key(room_id)
-    room_data = json.loads(redis_client.get(room_key))
-    target = int(room_data.get('audience_card_limit', 1))
+    user['submitted_count'] = current_count + 1
     
     if user['submitted_count'] >= target:
         user['submitted'] = True
@@ -552,13 +787,50 @@ def handle_submit_card(data, is_internal=False):
     total_required = (total_users - 1) * target + 1
     curr_sub = redis_client.hlen(submission_key)
     
+    print(f"📊 [Debug] Submission Check: Current={curr_sub}, Users={total_users}, TargetPerUser={target}, Required={total_required}", flush=True)
+
+    # [Safety Net] 만약 제출 수가 유저 수보다 크거나 같으면 (최소 1장씩은 냈다는 뜻) 강제 진행
+    # (비정상적인 상황 방지)
+    force_transition = False
     if curr_sub >= total_required:
+        # [Critical Fix] 단순히 총 개수만 확인하는 것이 아니라, 모든 유저가 실제로 제출했는지 검증
+        # (AI가 중복 제출하거나 카운트 오류가 있어도, 사람이 안 냈으면 넘어가지 않도록 방지)
+        all_users_submitted = True
+        users_data = redis_client.hgetall(users_key)
+        
+        storyteller_id = room_data.get('storyteller_id')
+        
+        for uid, u_json in users_data.items():
+            if uid == storyteller_id: continue # 이야기꾼은 audience 카드를 내지 않으므로 제외
+            
+            u = json.loads(u_json)
+            if u.get('submitted_count', 0) < target:
+                print(f"🛑 [Debug] Hold transition: User {u['username']} has not submitted enough cards ({u.get('submitted_count', 0)}/{target})", flush=True)
+                all_users_submitted = False
+                break
+        
+        if all_users_submitted:
+            force_transition = True
+        else:
+            print("⚠️ [Debug] Total count met but not all users submitted. Waiting...", flush=True)
+
+    elif curr_sub >= total_users and target == 1:
+        print("⚠️ [Debug] Force transition triggered (Count mismatch safely handled)", flush=True)
+        force_transition = True
+
+    if force_transition:
+        print("🚀 [Debug] Transitioning to Voting Phase!", flush=True)
         room_data['phase'] = 'voting'
         subs = [json.loads(s) for s in redis_client.hvals(submission_key)]
         random.shuffle(subs)
         room_data['voting_candidates'] = subs
         redis_client.set(room_key, json.dumps(room_data))
         redis_client.delete(f"room:{room_id}:votes")
+        
+        # [Race Condition Fix] 상태 변경 알리고 즉시 리턴하여 중복 처리 방지
+        emit_game_state(room_id)
+        trigger_ai_check(room_id)
+        return
     
     emit_game_state(room_id)
     trigger_ai_check(room_id)
@@ -580,7 +852,12 @@ def handle_submit_vote(data, is_internal=False):
     vote_count = redis_client.hlen(vote_key)
     
     if vote_count >= total_users - 1:
-        calculate_round_result(room_id)
+        # [Fix] 중복 계산 방지: 이미 결과 페이즈라면 계산 스킵
+        latest_room = json.loads(redis_client.get(get_room_key(room_id)))
+        if latest_room['phase'] == 'result':
+            print("⚠️ [Debug] Round result already calculated. Skipping.", flush=True)
+        else:
+            calculate_round_result(room_id)
     
     emit_game_state(room_id)
     trigger_ai_check(room_id)
