@@ -233,11 +233,15 @@ function App() {
         });
 
         socket.on('error', (data) => {
-            alert(data.message);
-            setIsLoading(false);
-            // 에러 발생 시(방이 사라짐 등) 세션 초기화
-            sessionStorage.removeItem('mind_sync_room_id');
             setView('lobby');
+        });
+
+        socket.on('kicked', (data) => {
+            if (data.target_id === sessionStorage.getItem('mind_sync_user_id')) {
+                alert("방장에 의해 강퇴되었습니다.");
+                sessionStorage.removeItem('mind_sync_room_id');
+                window.location.reload();
+            }
         });
 
         return () => {
@@ -246,6 +250,7 @@ function App() {
             socket.off('timer_update');
             socket.off('notification');
             socket.off('error');
+            socket.off('kicked');
         };
     }, [view]);
 
@@ -412,6 +417,11 @@ function App() {
         if (resultDelayCount > 0) return;
         socket.emit('next_round', { room_id: roomId });
         setMyVotedCardId(null);
+    };
+
+    const handleKickUser = (targetId) => {
+        if (!window.confirm("정말 이 사용자를 강퇴하시겠습니까?")) return;
+        socket.emit('kick_user', { room_id: roomId, user_id: myId, target_user_id: targetId });
     };
 
     const handleBackToLobby = () => {
@@ -639,6 +649,14 @@ function App() {
                                             : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50'}`}>
                                         <span className="drop-shadow-md">{u.username.substr(0, 1)}</span>
                                         {u.user_id === roomState?.host_id && <div className="absolute -top-2 -right-2 bg-yellow-400 text-[10px] rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-black border-2 border-gray-900 z-10">👑</div>}
+                                        {isHost && u.user_id !== myId && (
+                                            <button
+                                                onClick={() => handleKickUser(u.user_id)}
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-gray-900 z-20 hover:bg-red-600 transition"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
                                     </div>
                                     <span className={`font-bold text-sm px-3 py-1 rounded-full ${u.user_id === myId ? 'bg-pink-500/20 text-pink-200 border border-pink-500/30' : 'text-gray-400'}`}>
                                         {u.username}

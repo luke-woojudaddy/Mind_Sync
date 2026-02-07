@@ -205,6 +205,37 @@ def update_room_users(room_id):
     users_key = f"room:{room_id}:users"
     users_json_list = redis_client.hvals(users_key)
     users = [json.loads(u) for u in users_json_list]
+    
+    # Get Host ID (Handle potential None/Missing)
+    room_key = get_room_key(room_id)
+    room_raw = redis_client.get(room_key)
+    host_id = "UNKNOWN"
+    if room_raw:
+        host_id = str(json.loads(room_raw).get('host_id', ''))
+
+    # Sorting Logic (Score-based)
+    def get_sort_priority(u):
+        uid = str(u.get('user_id', ''))
+        # Priority 0: Host
+        if uid == host_id:
+            return 0
+        
+        is_ai = str(u.get('is_ai', False)).lower() == 'true'
+        # Priority 1: Human
+        if not is_ai:
+            return 1
+        # Priority 2: AI
+        return 2
+
+    # Primary sort: Priority, Secondary sort: Join Time (Earlier is better)
+    users.sort(key=lambda u: (get_sort_priority(u), u.get('joined_at', 0)))
+    
+    # [Debug] Print sorted list to verify
+    print(f"📋 [Debug] Room {room_id} Sorted Users:", flush=True)
+    for i, u in enumerate(users):
+        role = "HOST" if str(u['user_id']) == host_id else ("AI" if str(u.get('is_ai', False)).lower()=='true' else "HUMAN")
+        print(f"   {i+1}. {u['username']} ({role}) - Joined: {u.get('joined_at')}", flush=True)
+
     socketio.emit('update_user_list', {'users': users}, room=room_id)
 
 def emit_game_state(room_id):
@@ -545,7 +576,8 @@ def handle_join_game(data):
             'ready': False,
             'score': 0,
             'hand': [],
-            'is_ai': False 
+            'is_ai': False,
+            'joined_at': time.time() # [Sort Fix] 입장 시간 기록
         }
     
     redis_client.hset(users_key, user_id, json.dumps(user_info))
@@ -595,13 +627,29 @@ def handle_add_ai(data):
 
     ai_names = ["AlphaGo", "Jarvis", "Hal-9000", "Skynet", "GLaDOS", "T-800", "Wall-E"]
     ai_id = f"ai_{uuid.uuid4().hex[:6]}"
-    ai_name = random.choice(ai_names)
     
-    # 중복 이름 방지
+    # [Unique Name Logic]
     current_users = [json.loads(u) for u in redis_client.hvals(users_key)]
-    existing_names = set(u['username'] for u in current_users)
-    while ai_name in existing_names:
-         ai_name = random.choice(ai_names) + f"_{random.randint(1,9)}"
+    existing_names = set(u['username'].replace(" (AI)", "") for u in current_users) # AI 태그 제외하고 비교
+
+    random.shuffle(ai_names)
+    selected_name = None
+    
+    # 1. 기본 이름 중 안 겹치는 것 찾기
+    for name in ai_names:
+        if name not in existing_names:
+            selected_name = name
+            break
+    
+    # 2. 다 겹치면 숫자 붙이기
+    if not selected_name:
+        base_name = random.choice(ai_names)
+        suffix = 2
+        while f"{base_name} {suffix}" in existing_names:
+            suffix += 1
+        selected_name = f"{base_name} {suffix}"
+    
+    ai_name = selected_name
 
     ai_user = {
         'user_id': ai_id,
@@ -609,12 +657,50 @@ def handle_add_ai(data):
         'ready': True,  # AI는 항상 준비됨
         'score': 0,
         'hand': [],
-        'is_ai': True
+        'is_ai': True,
+        'joined_at': time.time() # [Sort Fix] AI 입장 시간 기록
     }
     
     redis_client.hset(users_key, ai_id, json.dumps(ai_user))
     update_room_users(room_id)
     emit('notification', {'message': f"🤖 AI 플레이어 '{ai_name}'가 추가되었습니다."}, room=room_id)
+
+@socketio.on('kick_user')
+def handle_kick_user(data):
+    room_id = data.get('room_id')
+    requester_id = data.get('user_id')
+    target_id = data.get('target_user_id')
+
+    room_key = get_room_key(room_id)
+    room_data = json.loads(redis_client.get(room_key))
+
+    # 권한 체크: 방장만 가능
+    if room_data.get('host_id') != requester_id:
+        return
+
+    users_key = f"room:{room_id}:users"
+    target_user_json = redis_client.hget(users_key, target_id)
+    
+    if target_user_json:
+        target_user = json.loads(target_user_json)
+        username = target_user.get('username')
+        
+        # Redis에서 삭제
+        redis_client.hdel(users_key, target_id)
+        
+        # 소켓 맵에서도 삭제 (재접속 시 방에 다시 들어오는 것 방지)
+        # 단, 실제 소켓 연결은 끊지 않음 (클라이언트가 'kicked' 이벤트 받고 처리)
+        # 하지만 target_id를 모르면 socket_map 키를 루프 돌려야 하니 생략하거나, 
+        # 클라이언트가 알아서 disconnect 처리하도록 유도.
+        
+        # 알림 발송
+        emit('notification', {'message': f"🚫 {username} 님이 강퇴되었습니다."}, room=room_id)
+        
+        # 대상에게 강퇴 이벤트 전송
+        # (방 전체에 쏘되, 클라이언트가 자기 ID인지 체크하는 방식이 안전)
+        emit('kicked', {'target_id': target_id}, room=room_id)
+        
+        update_room_users(room_id)
 
 @socketio.on('refresh_words')
 def handle_refresh_words(data):
