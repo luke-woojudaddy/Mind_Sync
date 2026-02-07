@@ -91,6 +91,115 @@ const RulesModal = ({ onClose }) => (
         </div>
     </div>
 );
+// [New] 튜토리얼 모달 컴포넌트 (Refactored)
+const TutorialModal = ({ onClose }) => {
+    const [step, setStep] = useState(0);
+    const totalSteps = 3;
+
+    const steps = [
+        {
+            title: "1. 이야기꾼의 선택",
+            desc: "제시된 그림과 가장 잘 어울리는 **키워드**를 하나 선택하세요.\n딱 맞는 단어가 없다면 **변경(🎲)** 버튼을 눌러 새로운 단어를 받을 수 있어요!",
+            image: "/assets/tutorial/step1.png"
+        },
+        {
+            title: "2. 친구들의 낚시",
+            desc: "주제와 가장 비슷한 느낌의 **내 카드**를 몰래 제출하세요.\n다른 사람들이 내 카드를 정답으로 착각하게 만들어야 점수를 얻습니다!",
+            image: "/assets/tutorial/step2.png"
+        },
+        {
+            title: "3. 정답 맞히기",
+            desc: "모든 카드가 공개되었습니다!\n이야기꾼이 냈던 **진짜 카드**가 무엇인지 추리해서 투표하세요.",
+            image: "/assets/tutorial/step3.png"
+        }
+    ];
+
+    const handleNext = (e) => {
+        e.stopPropagation();
+        if (step < totalSteps - 1) setStep(step + 1);
+    };
+
+    const handlePrev = (e) => {
+        e.stopPropagation();
+        if (step > 0) setStep(step - 1);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-gray-900/90 backdrop-blur-md border border-white/20 p-8 rounded-3xl max-w-3xl w-full shadow-2xl relative flex flex-col items-center text-center overflow-hidden" onClick={e => e.stopPropagation()}>
+
+                {/* Close Button */}
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 z-50 text-2xl">✕</button>
+
+                {/* Progress Bar (Top) */}
+                <div className="w-full flex gap-1 mb-6 px-2">
+                    {[...Array(totalSteps)].map((_, i) => (
+                        <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gray-700'}`}
+                        />
+                    ))}
+                </div>
+
+                {/* Image Placeholder area */}
+                <div className="w-full aspect-video bg-gray-900 rounded-xl mb-8 flex items-center justify-center shadow-lg border border-white/10 relative overflow-hidden group">
+                    {/* Placeholder Background just in case */}
+                    <div className="absolute inset-0 bg-gray-800 flex items-center justify-center text-gray-600 font-mono text-xs">
+                        Loading Image...
+                    </div>
+
+                    {/* Actual Tutorial Image */}
+                    <img
+                        src={steps[step].image}
+                        alt={`Step ${step + 1}`}
+                        className="relative z-10 w-full h-full object-contain hover:scale-[1.02] transition-transform duration-500"
+                        onError={(e) => {
+                            // [Fix] 단순 숨김 처리 (Crashing 방지) - innerHTML 조작 금지
+                            e.target.style.opacity = '0.5';
+                        }}
+                    />
+                </div>
+
+                {/* Content */}
+                <div className="mb-8 min-h-[80px] w-full px-4">
+                    <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 mb-4 animate-fade-in-down">
+                        {steps[step].title}
+                    </h2>
+                    <p className="text-gray-300 text-lg leading-relaxed whitespace-pre-line animate-fade-in-up">
+                        {steps[step].desc.split('**').map((part, i) =>
+                            i % 2 === 1 ? <span key={i} className="text-yellow-400 font-bold">{part}</span> : part
+                        )}
+                    </p>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="w-full flex items-center justify-between px-4">
+                    <button
+                        onClick={handlePrev}
+                        disabled={step === 0}
+                        className={`px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${step === 0 ? 'opacity-0 cursor-default' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                    >
+                        ◀ 이전
+                    </button>
+
+                    {/* 'Start' button on last step */}
+                    {step === totalSteps - 1 ? (
+                        <button onClick={onClose} className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl font-bold text-white shadow-lg animate-bounce-in hover:scale-105 transition flex items-center gap-2">
+                            게임 시작하기 🚀
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleNext}
+                            className="px-6 py-3 rounded-xl font-bold transition bg-white/10 hover:bg-white/20 text-white flex items-center gap-2"
+                        >
+                            다음 ▶
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 function App() {
     const [view, setView] = useState('lobby');
@@ -107,9 +216,12 @@ function App() {
     const [notification, setNotification] = useState(null);
     const [showRules, setShowRules] = useState(false);
 
-    // [설정] 라운드 설정 및 애니메이션 방향 State
+    // [새로고침 방지] 라운드 설정 및 애니메이션 방향 State
     const [roundsPerUser, setRoundsPerUser] = useState(2);
     const [slideDirection, setSlideDirection] = useState(0);
+
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false); // [New] 튜토리얼 모달 상태
+
 
     // 결과 화면 딜레이 처리를 위한 state
     const [resultDelayCount, setResultDelayCount] = useState(0);
@@ -476,10 +588,40 @@ function App() {
         }
     };
 
+    const [backgroundCards, setBackgroundCards] = useState([]);
+
+    useEffect(() => {
+        // [UI] 초기 배경용 카드 랜덤 선택 (6장)
+        const totalCards = 100; // card_001 ~ card_100
+        const selected = [];
+        while (selected.length < 6) {
+            const num = Math.floor(Math.random() * totalCards) + 1;
+            const cardName = `card_${String(num).padStart(3, '0')}.webp`;
+            if (!selected.includes(cardName)) {
+                selected.push(cardName);
+            }
+        }
+        setBackgroundCards(selected);
+    }, []);
+
+    const getExternalCardUrl = (filename) => {
+        return `https://luke-woojudaddy.github.io/Mind_Sync/decks/deck1/${filename}`;
+    };
+
     return (
-        <div className="h-[100dvh] md:h-[100dvh] bg-[#0a0a1a] flex flex-col items-center justify-center text-white font-sans overflow-x-hidden overflow-y-auto md:overflow-hidden relative selection:bg-pink-500 selection:text-white pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0 touch-pan-y scroll-smooth">
+        <div className="h-[100dvh] md:h-[100dvh] bg-[#0a0a1a] flex flex-col items-center justify-center text-white font-sans overflow-hidden relative selection:bg-pink-500 selection:text-white pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0 touch-pan-y scroll-smooth">
             {/* Background Animation & Effects */}
             <style>{`
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        @keyframes float-delayed {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(-2deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
         @keyframes blob-bounce { 
           0%, 100% { transform: translate(0, 0) scale(1); } 
           25% { transform: translate(20px, -20px) scale(1.1); }
@@ -491,6 +633,9 @@ function App() {
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
+        
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-delayed { animation: float-delayed 7s ease-in-out infinite; }
         
         /* [중요] 누락된 애니메이션 키프레임 추가 */
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -527,10 +672,40 @@ function App() {
         .animate-slide-left { animation: slideInLeft 0.3s ease-out forwards; }
       `}</style>
 
-            {/* Background Blobs */}
-            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[100px] animate-blob mix-blend-screen pointer-events-none"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[100px] animate-blob delay-2000 mix-blend-screen pointer-events-none"></div>
-            <div className="absolute top-[40%] left-[40%] w-[300px] h-[300px] bg-pink-500/20 rounded-full blur-[80px] animate-blob delay-4000 mix-blend-screen pointer-events-none"></div>
+            {/* [New] Dynamic Background Layer (Lobby Only) */}
+            {view === 'lobby' && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    {/* Dark overlay for better text contrast */}
+                    <div className="absolute inset-0 bg-[#0a0a1a]/80 z-10"></div>
+
+                    {/* Floating Cards */}
+                    {backgroundCards.map((card, index) => (
+                        <div
+                            key={index}
+                            className={`absolute opacity-30 ${index % 2 === 0 ? 'animate-float' : 'animate-float-delayed'}`}
+                            style={{
+                                top: `${Math.random() * 80 + 10}%`,
+                                left: `${Math.random() * 80 + 10}%`,
+                                width: `${Math.random() * 100 + 120}px`,
+                                transform: `rotate(${Math.random() * 40 - 20}deg)`,
+                                animationDelay: `${Math.random() * 5}s`,
+                                filter: 'blur(1px)' // Adding slight blur for depth
+                            }}
+                        >
+                            <img
+                                src={getExternalCardUrl(card)}
+                                alt="deco"
+                                className="w-full h-auto rounded-xl shadow-2xl"
+                                loading="lazy"
+                            />
+                        </div>
+                    ))}
+
+                    {/* Background Gradients/Blobs */}
+                    <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[100px] animate-blob mix-blend-screen"></div>
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] animate-blob delay-2000 mix-blend-screen"></div>
+                </div>
+            )}
 
             {/* [속도 개선] 로딩 오버레이 */}
             {isLoading && (
@@ -550,68 +725,86 @@ function App() {
             )}
 
             {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+            {isTutorialOpen && <TutorialModal onClose={() => setIsTutorialOpen(false)} />}
 
             {view === 'lobby' && (
-                <div className="relative z-10 glass-card p-10 rounded-[3rem] text-center w-full max-w-[420px] shadow-2xl animate-fade-in-up">
-                    <div className="mb-8">
-                        <h1 className="text-5xl font-extrabold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-300 tracking-tighter drop-shadow-sm">
+                <div className="z-10 flex flex-col items-center w-full max-w-md px-6 animate-fade-in-up">
+                    {/* Title Section */}
+                    <div className="text-center mb-10">
+                        <h1 className="text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 drop-shadow-lg tracking-tighter">
                             Mind Sync
                         </h1>
-                        <p className="text-xs text-gray-400 tracking-[0.2em] font-light uppercase">Connect Your Thoughts</p>
+                        <h2 className="mt-4 text-xl md:text-2xl font-light text-white tracking-widest uppercase">
+                            그림으로 통하는 텔레파시
+                        </h2>
+                        <p className="mt-3 text-gray-400 text-sm font-medium">
+                            AI 그림을 보고 친구의 속마음을 맞혀보세요.<br />
+                            설치 없는 웹 보드게임!
+                        </p>
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="text-left group">
-                            <label className="text-xs text-indigo-200 ml-2 font-bold uppercase tracking-wider mb-1 block group-focus-within:text-pink-300 transition-colors">Nickname</label>
-                            <input
-                                value={myName}
-                                onChange={e => updateLocalName(e.target.value)}
-                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-5 py-4 text-white text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:bg-black/50 transition-all placeholder-gray-600 shadow-inner"
-                                placeholder="당신의 이름은?"
-                            />
-                        </div>
+                    {/* Glassmorphism Login Box */}
+                    <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl relative overflow-hidden group hover:border-white/30 transition duration-500">
+                        {/* Shine Effect */}
+                        <div className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 group-hover:left-[100%] transition-all duration-1000 ease-in-out"></div>
 
-                        {/* OR Divider 제거됨 */}
-
-                        <button
-                            onClick={handleCreateRoom}
-                            disabled={isLoading}
-                            className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 p-[1px] shadow-lg transition-transform active:scale-95"
-                        >
-                            <div className="relative bg-black/20 backdrop-blur-sm transition-colors group-hover:bg-white/10 w-full h-full rounded-2xl py-4">
-                                <span className="relative font-bold text-lg text-white tracking-wide">✨ 새로운 방 만들기</span>
+                        <div className="space-y-5 relative z-10">
+                            {/* Nickname Input */}
+                            <div>
+                                <label className="text-xs text-indigo-200 ml-2 font-bold uppercase tracking-wider mb-1 block">Nickname</label>
+                                <input
+                                    value={myName}
+                                    onChange={e => updateLocalName(e.target.value)}
+                                    className="w-full bg-black/50 border border-purple-500/30 rounded-xl p-4 text-white text-center font-bold text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/70 transition-all shadow-inner"
+                                    placeholder="닉네임을 입력하세요"
+                                />
                             </div>
-                        </button>
 
-                        {/* OR Divider 이동됨 */}
-                        <div className="relative py-2">
-                            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                <div className="w-full border-t border-white/10"></div>
-                            </div>
-                            <div className="relative flex justify-center">
-                                <span className="bg-transparent px-2 text-xs text-gray-500 font-mono">OR</span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2 h-14">
-                            <input
-                                value={roomInput}
-                                onChange={e => setRoomInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-                                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                                placeholder="Room ID"
-                            />
+                            {/* Create Room Button */}
                             <button
-                                onClick={handleJoinRoom}
+                                onClick={handleCreateRoom}
                                 disabled={isLoading}
-                                className="bg-white/10 border border-white/10 px-6 rounded-2xl hover:bg-white/20 hover:border-white/30 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95"
+                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"
                             >
-                                입장
+                                <span>✨ 새로운 방 만들기</span>
                             </button>
+
+                            {/* Divider */}
+                            <div className="relative py-2">
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-600/50"></div></div>
+                                <div className="relative flex justify-center text-xs uppercase"><span className="bg-transparent px-2 text-gray-400 font-bold">OR JOIN</span></div>
+                            </div>
+
+                            {/* Join Room Input & Button */}
+                            <div className="flex gap-2">
+                                <input
+                                    value={roomInput}
+                                    onChange={e => setRoomInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                                    className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                                    placeholder="입장 코드 4자리"
+                                />
+                                <button
+                                    onClick={handleJoinRoom}
+                                    disabled={isLoading}
+                                    className="bg-white/10 border border-white/10 px-6 rounded-xl hover:bg-white/20 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95 text-sm"
+                                >
+                                    입장
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <p className="mt-8 text-[10px] text-gray-600">
+                    {/* Footer / Tutorial Trigger */}
+                    <div
+                        onClick={() => setIsTutorialOpen(true)}
+                        className="mt-8 text-gray-400 text-sm cursor-pointer hover:text-white transition flex items-center gap-2 group"
+                    >
+                        <span className="group-hover:animate-bounce">📖</span>
+                        <span className="underline decoration-gray-600 group-hover:decoration-white underline-offset-4">처음이신가요? 30초 만에 게임 배우기</span>
+                    </div>
+
+                    <p className="mt-4 text-[10px] text-gray-600 font-mono">
                         v1.2.0 • Powered by Lumiverse Lab
                     </p>
                 </div>
