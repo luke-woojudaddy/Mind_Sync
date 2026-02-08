@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import io from 'socket.io-client';
 
 // ==================================================================
@@ -249,11 +250,17 @@ function App() {
     const touchEndX = useRef(null);
     const minSwipeDistance = 50;
 
+    // [New] Copied Button State
+    const [isCopied, setIsCopied] = useState(false);
+
     // [New] Landing Page Scroll Ref
     const infoSectionRef = useRef(null);
     const scrollToInfo = () => {
         infoSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
+
+    // [New] URL Query Parameter Check
+    const [searchParams] = useSearchParams();
 
     useEffect(() => {
         let storedId = sessionStorage.getItem('mind_sync_user_id');
@@ -263,22 +270,55 @@ function App() {
         }
         setMyId(storedId);
 
-        const savedName = localStorage.getItem('mind_sync_username');
-        if (savedName) {
-            setMyName(savedName);
+        let currentName = localStorage.getItem('mind_sync_username');
+        if (currentName) {
+            setMyName(currentName);
         } else {
-            setMyName(`Player_${storedId.substr(-4)}`);
+            currentName = `Player_${storedId.substr(-4)}`;
+            setMyName(currentName);
+            // [Auto-Join] If no name exists, save the generated one immediately for auto-join
+            localStorage.setItem('mind_sync_username', currentName);
         }
         setCurrentTip(GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]);
 
-        // [새로고침 방지] 세션 스토리지에서 방 ID 확인 및 자동 재접속
+        const inviteCode = searchParams.get('code');
         const storedRoomId = sessionStorage.getItem('mind_sync_room_id');
+
         if (storedRoomId) {
+            // Priority 1: Rejoin existing session
             setRoomId(storedRoomId);
-            rejoinRoom(storedRoomId, storedId, savedName || `Player_${storedId.substr(-4)}`);
+            rejoinRoom(storedRoomId, storedId, currentName);
+            // If invite code exists but we are already in a room, just clean the URL
+            if (inviteCode) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        } else if (inviteCode) {
+            // Priority 2: Auto-Join via Link
+            setRoomInput(inviteCode);
+            handleAutoJoin(inviteCode, storedId, currentName);
         }
 
-    }, []);
+    }, [searchParams]);
+
+    const handleAutoJoin = async (code, uid, uname) => {
+        setIsLoading(true);
+        try {
+            await joinRoom(code);
+            setRoomId(code);
+            setView('waiting');
+            // Connect socket
+            if (!socket.connected) socket.connect();
+            sessionStorage.setItem('mind_sync_room_id', code);
+            socket.emit('join_game', { room_id: code, user_id: uid, username: uname });
+
+            // Cleanup URL
+            window.history.replaceState({}, '', window.location.pathname);
+        } catch (e) {
+            alert("입장 실패: " + e.message);
+            setIsLoading(false);
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    };
 
     const updateLocalName = (name) => {
         setMyName(name);
@@ -505,6 +545,19 @@ function App() {
         }
     };
 
+    const copyInviteLink = () => {
+        const url = `${window.location.origin}/?code=${roomId}`;
+        navigator.clipboard.writeText(url).then(() => {
+            // setNotification("초대 링크가 복사되었습니다! 🔗");
+            // setTimeout(() => setNotification(null), 3000);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            setNotification("초대 링크 복사에 실패했습니다.");
+        });
+    };
+
     const handleUpdateProfile = () => {
         socket.emit('update_profile', { room_id: roomId, user_id: myId, username: myName });
         updateLocalName(myName);
@@ -692,7 +745,9 @@ function App() {
                         <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-purple-200">SYNC</div>
                     </div>
-                    <p className="text-purple-300 font-bold mt-4 animate-pulse tracking-widest text-sm">CONNECTING...</p>
+                    <p className="text-purple-300 font-bold mt-4 animate-pulse tracking-widest text-sm">
+                        {searchParams.get('code') ? "🚀 JOINING ROOM..." : "CONNECTING..."}
+                    </p>
                 </div>
             )}
 
@@ -896,6 +951,34 @@ function App() {
                                         <div className="relative text-7xl font-mono text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 font-extrabold tracking-widest mb-6 drop-shadow-sm p-2">
                                             {roomId}
                                         </div>
+                                    </div>
+
+                                    {/* [New] Glassmorphism Invite Link Input Group */}
+                                    <div className="mb-10 w-full max-w-sm mx-auto flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-1 pl-4 shadow-lg backdrop-blur-sm group hover:border-white/20 transition-all">
+                                        <div className="flex-1 truncate mr-3 text-xs text-gray-400 font-mono tracking-tight opacity-70 group-hover:opacity-100 transition">
+                                            {window.location.origin}/?code={roomId}
+                                        </div>
+                                        <button
+                                            onClick={copyInviteLink}
+                                            className={`
+                                                flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95
+                                                ${isCopied
+                                                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                                                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'}
+                                            `}
+                                        >
+                                            {isCopied ? (
+                                                <>
+                                                    <span>✅</span>
+                                                    <span>Copied!</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span>🔗</span>
+                                                    <span>Copy Link</span>
+                                                </>
+                                            )}
+                                        </button>
                                     </div>
 
                                     <div className="flex justify-center items-center gap-3 mb-10 max-w-xs mx-auto bg-black/30 p-2 rounded-2xl border border-white/5">
@@ -1539,29 +1622,32 @@ function App() {
                         )
                     }
                 </main>
-            )}
+            )
+            }
 
-            {notification && (
-                <div
-                    className="fixed inset-x-0 top-[65%] z-[10000] flex justify-center pointer-events-none"
-                    style={{ top: '65%' }}
-                >
+            {
+                notification && (
                     <div
-                        className="px-6 py-3 rounded-3xl font-bold text-sm text-center shadow-xl animate-fade-in-up
+                        className="fixed inset-x-0 top-[65%] z-[10000] flex justify-center pointer-events-none"
+                        style={{ top: '65%' }}
+                    >
+                        <div
+                            className="px-6 py-3 rounded-3xl font-bold text-sm text-center shadow-xl animate-fade-in-up
                                    whitespace-normal break-keep leading-snug
                                    border border-white/10 backdrop-blur-sm select-none"
-                        style={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            color: '#fff',
-                            width: 'max-content',
-                            maxWidth: '85vw'
-                        }}
-                    >
-                        {notification}
+                            style={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                color: '#fff',
+                                width: 'max-content',
+                                maxWidth: '85vw'
+                            }}
+                        >
+                            {notification}
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 
