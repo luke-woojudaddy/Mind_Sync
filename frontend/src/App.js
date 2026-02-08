@@ -958,10 +958,14 @@ function App() {
                     </section>
                 </>
             ) : (
-                <main className={`h-screen w-full relative pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0 flex flex-col
+                <main className={`h-[100dvh] w-full relative flex flex-col
                     ${view === 'game'
                         ? 'overflow-hidden items-center justify-center'
                         : 'overflow-y-auto items-center justify-start pt-10'
+                    }
+                    ${(view === 'game' && roomState && ['storyteller_choosing', 'audience_submitting'].includes(roomState.phase) && !(isStoryteller && confirmedCard) && !amISubmitted)
+                        ? 'pb-[200px]'
+                        : 'pb-[env(safe-area-inset-bottom,20px)] md:pb-0'
                     }`}
                 >
 
@@ -1362,9 +1366,9 @@ function App() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="mt-8 text-center max-w-md">
-                                                <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-2 block font-bold">{t('game_tip')}</span>
-                                                <p className="text-gray-400 text-sm italic bg-black/40 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
+                                            <div className="mt-2 text-center max-w-md">
+                                                <span className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-1 block font-bold">{t('game_tip')}</span>
+                                                <p className="text-gray-400 text-xs italic bg-black/40 px-4 py-2 rounded-xl border border-white/5 backdrop-blur-sm">
                                                     "{currentTip}"
                                                 </p>
                                             </div>
@@ -1553,15 +1557,15 @@ function App() {
 
                                 {['storyteller_choosing', 'audience_submitting'].includes(roomState.phase) && !(isStoryteller && confirmedCard) && (
                                     <div className={`fixed bottom-0 left-0 w-full z-50 pointer-events-none transition-all duration-700 ease-in-out ${amISubmitted ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
-                                        <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-10 pb-6 px-4">
+                                        <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-2 px-4">
                                             <div className="flex justify-center w-full">
-                                                <div className="flex gap-3 overflow-x-auto px-4 pb-8 h-64 items-end scrollbar-hide w-fit mx-auto max-w-full pointer-events-auto snap-x">
+                                                <div className="flex gap-2 overflow-x-auto px-4 pb-4 h-48 items-end scrollbar-hide w-fit mx-auto max-w-full pointer-events-auto snap-x">
                                                     {myHand.map((card) => {
                                                         const isSubmittedLocal = mySubmittedCards.includes(card.id);
                                                         const isMyStoryCard = isStoryteller && roomState.storyteller_card_id === card.id;
                                                         return (
                                                             <div key={card.id} onClick={() => handleCardClick(card)}
-                                                                className={`snap-center flex-none w-[110px] h-36 bg-gray-800 rounded-xl cursor-pointer hover:-translate-y-6 hover:scale-110 transition-all duration-300 shadow-2xl border-2 overflow-hidden relative group 
+                                                                className={`snap-center flex-none w-[100px] h-32 bg-gray-800 rounded-xl cursor-pointer hover:-translate-y-4 hover:scale-105 transition-all duration-300 shadow-xl border-2 overflow-hidden relative group  
                                             ${confirmedCard?.id === card.id ? 'opacity-50 grayscale scale-95' : 'border-white/10 hover:border-pink-400 hover:shadow-pink-500/30'} 
                                             ${isSubmittedLocal ? 'opacity-40 border-green-500' : ''}
                                             ${isMyStoryCard ? 'ring-4 ring-yellow-500 opacity-70' : ''}`}>
