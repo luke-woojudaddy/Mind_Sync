@@ -304,6 +304,7 @@ function App() {
 
             // 단계 변경 시 처리
             if (prevPhaseRef.current !== currentPhase) {
+                setNotification(null); // [Bugfix] 단계 변경 시 기존 알림 제거
                 if (currentPhase === 'storyteller_choosing') {
                     setMySubmittedCards([]);
                     setConfirmedCard(null);
@@ -315,7 +316,7 @@ function App() {
                 }
 
                 if (currentPhase === 'result') {
-                    setResultDelayCount(10);
+                    setResultDelayCount(7);
                     determineResultMessage(data.room, data.users);
                 }
             }
@@ -579,6 +580,10 @@ function App() {
 
                 if (newSubmitted.length >= targetSubmitCount) {
                     setZoomCard(null);
+                    setNotification(null); // [Bugfix] 제출 완료 시 알림 제거
+                } else {
+                    setNotification("카드를 한 장 더 선택해주세요! 🎴");
+                    handleNextZoom();
                 }
             }
         } else if (roomState.phase === 'voting') {
@@ -692,7 +697,7 @@ function App() {
             )}
 
             {notification && (
-                <div className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-3 rounded-full shadow-2xl z-[100] animate-bounce font-bold whitespace-nowrap border border-white/20">
+                <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-3 rounded-full shadow-2xl z-[200] animate-bounce font-bold whitespace-nowrap border border-white/20 pointer-events-none">
                     {notification}
                 </div>
             )}
@@ -1147,13 +1152,19 @@ function App() {
                                                         </div>
 
                                                         <div className="w-full bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md mb-6 shadow-2xl">
-                                                            <div className="flex justify-between items-center mb-4">
-                                                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Keywords</span>
-                                                                <button onClick={handleRefreshWords} disabled={roomState.reroll_count <= 0}
-                                                                    className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 transition font-bold
-                                                    ${roomState.reroll_count > 0 ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20' : 'bg-gray-700/50 border-gray-600 text-gray-500 cursor-not-allowed'}`}>
-                                                                    <span>🎲</span> 변경 ({roomState.reroll_count})
-                                                                </button>
+                                                            <div className="flex flex-col items-end mb-4">
+                                                                <div className="flex justify-between items-center w-full mb-1">
+                                                                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Keywords</span>
+                                                                    <button onClick={handleRefreshWords} disabled={roomState.reroll_count <= 0}
+                                                                        className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 transition font-bold shadow-sm
+                                                        ${roomState.reroll_count <= 0 ? 'bg-gray-700/50 border-gray-600 text-gray-500 cursor-not-allowed' :
+                                                                                roomState.reroll_count <= 3 ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 animate-pulse' :
+                                                                                    'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20'}`}>
+                                                                        <span>{roomState.reroll_count > 0 ? '🔄' : '🚫'}</span>
+                                                                        {roomState.reroll_count > 0 ? `단어 변경 (${roomState.reroll_count}/10)` : '변경 불가'}
+                                                                    </button>
+                                                                </div>
+                                                                <p className="text-[10px] text-orange-400/80 font-light tracking-tight">※ 단어 변경 시 이전 단어들은 다시 선택할 수 없습니다.</p>
                                                             </div>
                                                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
                                                                 {roomState.word_candidates?.map((word) => (
