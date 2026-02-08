@@ -875,13 +875,13 @@ function App() {
                                                 value={roomInput}
                                                 onChange={e => setRoomInput(e.target.value)}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
-                                                className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                                                className="flex-[2] bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm min-w-0"
                                                 placeholder={t('enter_room_code')}
                                             />
                                             <button
                                                 onClick={handleJoinRoom}
                                                 disabled={isLoading}
-                                                className="bg-white/10 border border-white/10 px-6 rounded-xl hover:bg-white/20 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95 text-sm"
+                                                className="flex-1 bg-white/10 border border-white/10 rounded-xl hover:bg-white/20 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95 text-sm whitespace-nowrap flex items-center justify-center px-2"
                                             >
                                                 {t('join_room')}
                                             </button>
