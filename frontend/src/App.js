@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import io from 'socket.io-client';
+import { Helmet } from 'react-helmet-async';
 import { useLanguage } from './contexts/LanguageContext';
 
 // ==================================================================
@@ -956,6 +957,13 @@ function App() {
                             </div>
                         </div>
                     </section>
+                    <Helmet>
+                        <title>{language === 'ko' ? "마인드 싱크 | 온라인 딕싯 & Mind Sync" : "Mind Sync | Online Dixit Style Game"}</title>
+                        <meta name="description" content={language === 'ko'
+                            ? "설치 없이 바로 즐기는 온라인 딕싯(Dixit) 스타일의 심리 게임! 친구들과 함께하는 무료 온라인 보드게임 마인드 싱크."
+                            : "Play free online Dixit-style party game 'Mind Sync'. No download required. Enjoy AI image telepathy game with friends."}
+                        />
+                    </Helmet>
                 </>
             ) : (
                 <main className={`h-[100dvh] w-full relative flex flex-col
