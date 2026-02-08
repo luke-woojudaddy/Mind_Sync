@@ -582,7 +582,7 @@ function App() {
                     setZoomCard(null);
                     setNotification(null); // [Bugfix] 제출 완료 시 알림 제거
                 } else {
-                    setNotification("카드를 한 장 더 선택해주세요! 🎴");
+                    setNotification("카드를 한 장 더 선택해주세요!");
                     handleNextZoom();
                 }
             }
@@ -696,11 +696,7 @@ function App() {
                 </div>
             )}
 
-            {notification && (
-                <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-3 rounded-full shadow-2xl z-[200] animate-bounce font-bold whitespace-nowrap border border-white/20 pointer-events-none">
-                    {notification}
-                </div>
-            )}
+
 
             {showRules && <RulesModal onClose={() => setShowRules(false)} />}
             {isTutorialOpen && <TutorialModal onClose={() => setIsTutorialOpen(false)} />}
@@ -1538,6 +1534,27 @@ function App() {
                         )
                     }
                 </main>
+            )}
+
+            {notification && (
+                <div
+                    className="fixed inset-x-0 top-[65%] z-[10000] flex justify-center pointer-events-none"
+                    style={{ top: '65%' }}
+                >
+                    <div
+                        className="px-6 py-3 rounded-3xl font-bold text-sm text-center shadow-xl animate-fade-in-up
+                                   whitespace-normal break-keep leading-snug
+                                   border border-white/10 backdrop-blur-sm select-none"
+                        style={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            color: '#fff',
+                            width: 'max-content',
+                            maxWidth: '85vw'
+                        }}
+                    >
+                        {notification}
+                    </div>
+                </div>
             )}
         </div>
     );
