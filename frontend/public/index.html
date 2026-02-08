@@ -4,7 +4,64 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" content="#0a0a1a" />
+  <style>
+    html,
+    body {
+      background-color: #0a0a1a;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    #root {
+      height: 100%;
+    }
+
+    .initial-loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: #0a0a1a;
+      color: white;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .loader-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(139, 92, 246, 0.3);
+      border-top-color: #8b5cf6;
+      /* purple-500 */
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    .loader-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #c084fc, #e879f9);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+
+    .loader-subtitle {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-SCME05YXNW"></script>
   <script>
@@ -37,8 +94,11 @@
 <body>
   <noscript>이 앱을 실행하려면 JavaScript가 필요합니다.</noscript>
   <div id="root">
-    <h1>마인드 싱크 - 온라인 딕싯 스타일 웹 보드게임</h1>
-    <h2>설치 없는 무료 온라인 보드게임, AI 그림 심리전</h2>
+    <div class="initial-loader">
+      <div class="loader-spinner"></div>
+      <h1 class="loader-title">Mind Sync</h1>
+      <p class="loader-subtitle">그림으로 통하는 텔레파시</p>
+    </div>
   </div>
 </body>
 
