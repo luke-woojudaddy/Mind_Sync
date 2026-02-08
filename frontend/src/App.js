@@ -21,6 +21,8 @@ const socket = io(SERVER_URL, {
     autoConnect: false,
 });
 
+const TUTORIAL_BASE_URL = "https://cdn.jsdelivr.net/gh/luke-woojudaddy/Mind_Sync@main/frontend/public/assets/tutorial/";
+
 // --- Language Toggle Component (Fixed) ---
 const LanguageToggle = ({ toggleLanguage, language, className = "" }) => (
     <button
@@ -95,17 +97,17 @@ const TutorialModal = ({ onClose, t }) => {
         {
             title: t('tutorial_step1_title'),
             desc: t('tutorial_step1_desc'),
-            image: "/assets/tutorial/step1.png"
+            image: `${TUTORIAL_BASE_URL}step1.png`
         },
         {
             title: t('tutorial_step2_title'),
             desc: t('tutorial_step2_desc'),
-            image: "/assets/tutorial/step2.png"
+            image: `${TUTORIAL_BASE_URL}step2.png`
         },
         {
             title: t('tutorial_step3_title'),
             desc: t('tutorial_step3_desc'),
-            image: "/assets/tutorial/step3.png"
+            image: `${TUTORIAL_BASE_URL}step3.png`
         }
     ];
 
@@ -256,6 +258,15 @@ function App() {
 
     // [New] URL Query Parameter Check
     const [searchParams] = useSearchParams();
+
+    // 튜토리얼 이미지 프리로딩 (Smart Preloading)
+    useEffect(() => {
+        const images = ['step1.png', 'step2.png', 'step3.png'];
+        images.forEach((imgName) => {
+            const img = new Image();
+            img.src = `${TUTORIAL_BASE_URL}${imgName}`;
+        });
+    }, []);
 
     useEffect(() => {
         let storedId = sessionStorage.getItem('mind_sync_user_id');
