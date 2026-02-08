@@ -23,7 +23,8 @@ class AIEngine:
         self.card_embeddings = {}
         self.card_list_file = card_list_file
         self.static_cards_path = static_cards_path
-        self.word_pool = word_pool
+        # [I18n] Extract Korean words for embedding generation if input is list of dicts
+        self.word_pool = [w['ko'] if isinstance(w, dict) else w for w in word_pool]
         self.external_image_url = external_image_url
         
         print("🤖 [AI Engine] Initializing...")
@@ -188,9 +189,12 @@ class AIEngine:
             scores = []
             
             for word in candidates:
-                if word in self.word_embeddings:
-                    sim = self._cosine_similarity(card_vec, self.word_embeddings[word])
-                    scores.append((word, sim))
+                # [I18n] word comes as dict {'ko':..., 'en':...} or string
+                word_text = word['ko'] if isinstance(word, dict) else word
+                
+                if word_text in self.word_embeddings:
+                    sim = self._cosine_similarity(card_vec, self.word_embeddings[word_text])
+                    scores.append((word, sim)) # Return original object
             
             scores.sort(key=lambda x: x[1], reverse=True)
             
@@ -201,7 +205,9 @@ class AIEngine:
             if sweet_spots:
                 # 적절한 단어가 있으면 그 중에서 랜덤 선택
                 selected = random.choice(sweet_spots)
-                print(f"🧠 [AI Storyteller] Found Sweet Spot! Card: {card_id} -> {selected[0]} ({selected[1]:.2f})")
+                # selected[0] is the word object/string
+                word_log = selected[0]['ko'] if isinstance(selected[0], dict) else selected[0]
+                print(f"🧠 [AI Storyteller] Found Sweet Spot! Card: {card_id} -> {word_log} ({selected[1]:.2f})")
                 return selected[0], False
             
             # --- 전략 2: Sweet Spot이 없다면? ---
@@ -218,7 +224,8 @@ class AIEngine:
 
             # 리롤 조건에 해당하지 않지만 Sweet Spot도 아닌 애매한 경우 -> 그냥 Top Pick 사용
             # (계속 리롤할 순 없으므로)
-            print(f"🧠 [AI Storyteller] No Sweet Spot, but usable. Pick Top 1: {scores[0][0]}")
+            word_log = scores[0][0]['ko'] if isinstance(scores[0][0], dict) else scores[0][0]
+            print(f"🧠 [AI Storyteller] No Sweet Spot, but usable. Pick Top 1: {word_log}")
             return scores[0][0], False
             
         except Exception as e:

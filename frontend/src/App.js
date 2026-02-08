@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import io from 'socket.io-client';
+import { useLanguage } from './contexts/LanguageContext';
 
 // ==================================================================
 // [환경 변수 설정 - 수정됨]
@@ -19,6 +20,16 @@ const socket = io(SERVER_URL, {
     autoConnect: false,
 });
 
+// --- Language Toggle Component (Fixed) ---
+const LanguageToggle = ({ toggleLanguage, language, className = "" }) => (
+    <button
+        onClick={toggleLanguage}
+        className={`bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full text-xs font-bold text-white hover:bg-white/20 transition shadow-lg ${className}`}
+    >
+        {language === 'ko' ? 'KO' : 'EN'}
+    </button>
+);
+
 // --- API 로직 통합 ---
 const createRoom = async (name) => {
     const response = await fetch(`${SERVER_URL}/api/rooms`, {
@@ -26,7 +37,7 @@ const createRoom = async (name) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
     });
-    if (!response.ok) throw new Error('방 생성 실패');
+    if (!response.ok) throw new Error('ROOM_CREATE_FAIL');
     return response.json();
 };
 
@@ -35,82 +46,64 @@ const joinRoom = async (roomId) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
     });
-    if (!response.ok) throw new Error('방 입장 실패');
+    if (!response.ok) throw new Error('ROOM_JOIN_FAIL');
     return response.json();
 };
 
 const generateUserId = () => 'user_' + Math.random().toString(36).substr(2, 9);
 
 // 게임 팁 리스트 (기존 유지)
-const GAME_TIPS = [
-    "이야기꾼은 너무 쉽지도, 너무 어렵지도 않게 단어를 선정해야 점수를 얻습니다!",
-    "내 카드가 정답으로 오해받으면(낚시) 추가 점수를 얻을 수 있습니다.",
-    "다른 사람의 심리를 파악해보세요. 평소 그 사람의 생각 패턴이 힌트가 됩니다.",
-    "그림의 전체적인 분위기보다는 작은 디테일 하나가 결정적 힌트일 수 있습니다.",
-    "이야기꾼이 되면 과감한 단어 선택보다는 공감할 수 있는 단어가 유리할 때도 있습니다.",
-    "너무 뻔한 카드를 내면 낚시에 실패할 확률이 높습니다. 살짝 비틀어보세요!",
-    "이야기꾼의 평소 관심사나 취미를 생각하면 정답이 보일지도 모릅니다.",
-    "색감이 비슷한 카드는 혼란을 주기 좋습니다. 색깔을 활용해보세요.",
-    "추상적인 단어일수록 그림의 느낌(몽환적, 어두움 등)에 집중하는 것이 좋습니다.",
-    "속담이나 영화 제목, 노래 가사를 인용하면 더 재밌는 이야기가 됩니다.",
-    "카드를 고를 때 너무 오래 고민하면 오히려 남들이 눈치챌 수 있습니다.",
-    "내 카드가 정답 같아 보여도, 투표 때는 냉정하게 다른 카드를 살펴봐야 합니다.",
-    "이야기꾼이 낸 단어가 '명사'인지 '형용사'인지 잘 생각해보세요.",
-    "가끔은 아무런 관련 없어 보이는 카드가 정답일 때도 있습니다. (이야기꾼의 실수일 수도?)",
-    "점수가 뒤처지고 있다면 과감한 낚시로 역전을 노려보세요!"
-];
+// 게임 팁 리스트 (i18n 적용을 위해 컴포넌트 내부로 이동 또는 t 사용 시점 조정 필요하지만, 여기서는 상수 대신 t로 감싸서 사용하도록 로직 변경)
+// const GAME_TIPS = ... (Delete original const)
 
 // 게임 룰 모달 컴포넌트
-const RulesModal = ({ onClose }) => (
+const RulesModal = ({ onClose, t }) => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in" onClick={onClose}>
         <div className="bg-gray-900/90 border border-white/10 p-8 rounded-3xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl relative" onClick={e => e.stopPropagation()}>
             <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition">✕</button>
-            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-6">📖 게임 규칙</h2>
+            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-6">📖 {t('rules_title')}</h2>
             <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🃏 1. 이야기꾼의 턴</h3>
-                    <p className="text-gray-400">이야기꾼은 자신의 카드 중 하나를 고르고, 그 카드와 어울리는 <span className="text-yellow-400 font-bold">'단어'</span>를 선택합니다.</p>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🃏 {t('rule_1_title')}</h3>
+                    <p className="text-gray-400">{t('rule_1_desc')}</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🗳️ 2. 다른 플레이어의 제출</h3>
-                    <p className="text-gray-400">나머지 플레이어들은 이야기꾼이 제시한 단어를 보고, 자신의 패에서 가장 비슷하다고 생각되는 카드를 냅니다.</p>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🗳️ {t('rule_2_title')}</h3>
+                    <p className="text-gray-400">{t('rule_2_desc')}</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🔍 3. 투표</h3>
-                    <p className="text-gray-400">모든 카드가 섞여서 공개됩니다. 플레이어들은 이야기꾼이 낸 카드가 무엇인지 추측하여 투표합니다. (자기 카드 투표 불가)</p>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🔍 {t('rule_3_title')}</h3>
+                    <p className="text-gray-400">{t('rule_3_desc')}</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl">
-                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🏆 4. 점수 계산</h3>
-                    <ul className="list-disc list-inside pl-2 space-y-1 text-gray-400">
-                        <li><strong className="text-white">모두 정답/모두 오답:</strong> 이야기꾼 0점, 나머지 2점</li>
-                        <li><strong className="text-white">그 외:</strong> 이야기꾼 3점, 정답자 3점</li>
-                        <li><strong className="text-white">낚시 보너스:</strong> 내 카드가 표를 받으면 표당 +1점</li>
-                    </ul>
+                    <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">🏆 {t('rule_4_title')}</h3>
+                    <p className="text-gray-400">{t('rule_4_desc')}</p>
                 </div>
             </div>
-            <button onClick={onClose} className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl font-bold text-white hover:opacity-90 transition shadow-lg transform active:scale-95">알겠어요!</button>
+            <button onClick={onClose} className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl font-bold text-white hover:opacity-90 transition shadow-lg transform active:scale-95">{t('understand')}</button>
         </div>
     </div>
 );
 // [New] 튜토리얼 모달 컴포넌트 (Refactored)
-const TutorialModal = ({ onClose }) => {
+// [New] 튜토리얼 모달 컴포넌트 (Refactored)
+const TutorialModal = ({ onClose, t }) => {
     const [step, setStep] = useState(0);
     const totalSteps = 3;
 
     const steps = [
         {
-            title: "1. 이야기꾼의 선택",
-            desc: "제시된 그림과 가장 잘 어울리는 **키워드**를 하나 선택하세요.\n딱 맞는 단어가 없다면 **변경(🎲)** 버튼을 눌러 새로운 단어를 받을 수 있어요!",
+            title: t('tutorial_step1_title'),
+            desc: t('tutorial_step1_desc'),
             image: "/assets/tutorial/step1.png"
         },
         {
-            title: "2. 친구들의 낚시",
-            desc: "주제와 가장 비슷한 느낌의 **내 카드**를 몰래 제출하세요.\n다른 사람들이 내 카드를 정답으로 착각하게 만들어야 점수를 얻습니다!",
+            title: t('tutorial_step2_title'),
+            desc: t('tutorial_step2_desc'),
             image: "/assets/tutorial/step2.png"
         },
         {
-            title: "3. 정답 맞히기",
-            desc: "모든 카드가 공개되었습니다!\n이야기꾼이 냈던 **진짜 카드**가 무엇인지 추리해서 투표하세요.",
+            title: t('tutorial_step3_title'),
+            desc: t('tutorial_step3_desc'),
             image: "/assets/tutorial/step3.png"
         }
     ];
@@ -180,20 +173,20 @@ const TutorialModal = ({ onClose }) => {
                         disabled={step === 0}
                         className={`px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${step === 0 ? 'opacity-0 cursor-default' : 'bg-white/10 hover:bg-white/20 text-white'}`}
                     >
-                        ◀ 이전
+                        {t('prev_btn')}
                     </button>
 
                     {/* 'Start' button on last step */}
                     {step === totalSteps - 1 ? (
                         <button onClick={onClose} className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl font-bold text-white shadow-lg animate-bounce-in hover:scale-105 transition flex items-center gap-2">
-                            게임 시작하기 🚀
+                            {t('start_game_rocket')}
                         </button>
                     ) : (
                         <button
                             onClick={handleNext}
                             className="px-6 py-3 rounded-xl font-bold transition bg-white/10 hover:bg-white/20 text-white flex items-center gap-2"
                         >
-                            다음 ▶
+                            {t('next_btn')}
                         </button>
                     )}
                 </div>
@@ -216,6 +209,7 @@ function App() {
     const [timeLeft, setTimeLeft] = useState(60);
     const [notification, setNotification] = useState(null);
     const [showRules, setShowRules] = useState(false);
+    const { language, toggleLanguage, t, getWord } = useLanguage();
 
     // [새로고침 방지] 라운드 설정 및 애니메이션 방향 State
     const [roundsPerUser, setRoundsPerUser] = useState(2);
@@ -227,7 +221,7 @@ function App() {
     // 결과 화면 딜레이 처리를 위한 state
     const [resultDelayCount, setResultDelayCount] = useState(0);
     const [resultMessage, setResultMessage] = useState(null);
-    const [currentTip, setCurrentTip] = useState(GAME_TIPS[0]);
+    const [currentTip, setCurrentTip] = useState("");
 
     // [속도 개선 2] 로딩 상태 추가
     const [isLoading, setIsLoading] = useState(false);
@@ -279,7 +273,14 @@ function App() {
             // [Auto-Join] If no name exists, save the generated one immediately for auto-join
             localStorage.setItem('mind_sync_username', currentName);
         }
-        setCurrentTip(GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]);
+
+        // [Fix] t() is not available in initial state, so we use useEffect to update tip when language changes, 
+        // OR we can just select an index and render t(`tips_list.${index}`) but array structure in translations.js is simpler.
+        // However, t returns string/array. 
+        const tips = t('tips_list');
+        if (Array.isArray(tips) && tips.length > 0) {
+            setCurrentTip(tips[Math.floor(Math.random() * tips.length)]);
+        }
 
         const inviteCode = searchParams.get('code');
         const storedRoomId = sessionStorage.getItem('mind_sync_room_id');
@@ -314,7 +315,7 @@ function App() {
             // Cleanup URL
             window.history.replaceState({}, '', window.location.pathname);
         } catch (e) {
-            alert("입장 실패: " + e.message);
+            alert(t('alert_room_join_fail') + e.message);
             setIsLoading(false);
             window.history.replaceState({}, '', window.location.pathname);
         }
@@ -352,7 +353,11 @@ function App() {
                     setZoomCard(null);
                     setMyVotedCardId(null);
                     setResultMessage(null);
-                    setCurrentTip(GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]);
+                    setResultMessage(null);
+                    const tips = t('tips_list');
+                    if (Array.isArray(tips) && tips.length > 0) {
+                        setCurrentTip(tips[Math.floor(Math.random() * tips.length)]);
+                    }
                 }
 
                 if (currentPhase === 'result') {
@@ -387,7 +392,8 @@ function App() {
         socket.on('timer_update', (data) => setTimeLeft(data.time));
 
         socket.on('notification', (data) => {
-            setNotification(data.message);
+            const msg = data.key ? t(data.key, data.params) : data.message;
+            setNotification(msg);
             setTimeout(() => setNotification(null), 3000);
         });
 
@@ -397,7 +403,7 @@ function App() {
 
         socket.on('kicked', (data) => {
             if (data.target_id === sessionStorage.getItem('mind_sync_user_id')) {
-                alert("방장에 의해 강퇴되었습니다.");
+                alert(t('alert_kicked'));
                 sessionStorage.removeItem('mind_sync_room_id');
                 window.location.reload();
             }
@@ -431,21 +437,24 @@ function App() {
 
         if (isStoryteller) {
             if (scoreGained === 0) {
-                message = "이런! 모두 맞추거나 모두 틀렸네요... 😅";
+                message = "result_storyteller_fail";
             } else {
-                message = "나이스 스토리텔링! 성공입니다! 🎭";
+                message = "result_storyteller_success";
             }
         } else {
             const reason = me.last_score_reason || "";
-
-            if (reason.includes("정답")) {
-                message = "정답입니다! 훌륭한 눈썰미네요! 👁️";
-            } else if (reason.includes("낚시")) {
-                message = "월척입니다! 낚시 대성공! 🎣";
+            // New logic using keys
+            if (reason.includes("score_correct") || reason.includes("score_all_correct")) {
+                // Even if all correct, you were correct.
+                // But score_all_correct means 0 points usually, so handled by scoreGained check below?
+                // No, let's prioritize correct status.
+                message = "result_audience_correct";
+            } else if (reason.includes("score_trick")) {
+                message = "result_audience_bait";
             } else if (scoreGained > 0) {
-                message = "점수 획득 성공! 🎉";
+                message = "result_audience_success_score";
             } else {
-                message = "아쉽네요... 다음엔 맞출 수 있어요! 😢";
+                message = "result_audience_fail";
             }
         }
         setResultMessage(message);
@@ -453,9 +462,9 @@ function App() {
 
     const getGameOverMessage = (sortedUsers) => {
         const myRankIndex = sortedUsers.findIndex(u => u.user_id === myId);
-        if (myRankIndex === 0) return "🥇 우승을 축하합니다! 당신이 최고의 이야기꾼! 🎉";
-        if (myRankIndex === sortedUsers.length - 1) return "꼴찌라니... 아쉽네요 😅 다음엔 더 잘할 수 있어요!";
-        return "수고하셨습니다! 즐거운 게임 되셨나요? 😊";
+        if (myRankIndex === 0) return t('game_over_win');
+        if (myRankIndex === sortedUsers.length - 1) return t('game_over_lose');
+        return t('game_over_normal');
     };
 
     const isHost = roomState?.host_id === myId;
@@ -525,13 +534,13 @@ function App() {
             setView('waiting');
             enterGame(response.room.id);
         } catch (e) {
-            alert(e.message);
+            alert(t('alert_room_create_fail'));
             setIsLoading(false);
         }
     };
 
     const handleJoinRoom = async () => {
-        if (!roomInput) return alert("방 번호를 입력해주세요!");
+        if (!roomInput) return alert(t('alert_enter_room_code'));
         if (isLoading) return;
         setIsLoading(true); // 로딩 시작
         try {
@@ -540,7 +549,7 @@ function App() {
             setView('waiting');
             enterGame(roomInput);
         } catch (e) {
-            alert("접속 오류: " + e.message);
+            alert(t('alert_room_join_fail') + e.message);
             setIsLoading(false);
         }
     };
@@ -554,14 +563,14 @@ function App() {
             setTimeout(() => setIsCopied(false), 2000);
         }).catch(err => {
             console.error('Failed to copy: ', err);
-            setNotification("초대 링크 복사에 실패했습니다.");
+            setNotification(t('notification_copy_fail'));
         });
     };
 
     const handleUpdateProfile = () => {
         socket.emit('update_profile', { room_id: roomId, user_id: myId, username: myName });
         updateLocalName(myName);
-        alert("이름이 변경되었습니다!");
+        alert(t('alert_update_name_success'));
     };
 
     const handleStartGame = () => {
@@ -592,7 +601,7 @@ function App() {
     };
 
     const handleKickUser = (targetId) => {
-        if (!window.confirm("정말 이 사용자를 강퇴하시겠습니까?")) return;
+        if (!window.confirm(t('alert_kick_confirm'))) return;
         socket.emit('kick_user', { room_id: roomId, user_id: myId, target_user_id: targetId });
     };
 
@@ -610,6 +619,23 @@ function App() {
     const handleCardClick = (card, isVotingCandidate = false) => {
         if (!isVotingCandidate && amISubmitted) return;
         setZoomCard({ ...card, isVotingCandidate });
+    };
+
+    // Helper to parse score reason string from backend
+    // Format: "KEY" or "KEY|KEY2:arg1:arg2"
+    const getScoreReasonText = (reasonString, t) => {
+        if (!reasonString || reasonString === "-") return "";
+
+        const parts = reasonString.split('|');
+        return parts.map(part => {
+            const [key, ...args] = part.split(':');
+            // Handle args if any
+            let params = {};
+            if (key === 'score_trick' && args.length >= 2) {
+                params = { n: args[0], s: args[1] };
+            }
+            return t(key, params);
+        }).join(' / ');
     };
 
     const confirmCardSelection = () => {
@@ -635,7 +661,7 @@ function App() {
                     setZoomCard(null);
                     setNotification(null); // [Bugfix] 제출 완료 시 알림 제거
                 } else {
-                    setNotification("카드를 한 장 더 선택해주세요!");
+                    setNotification(t('notification_pick_more'));
                     handleNextZoom();
                 }
             }
@@ -753,8 +779,8 @@ function App() {
 
 
 
-            {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-            {isTutorialOpen && <TutorialModal onClose={() => setIsTutorialOpen(false)} />}
+            {showRules && <RulesModal onClose={() => setShowRules(false)} t={t} />}
+            {isTutorialOpen && <TutorialModal onClose={() => setIsTutorialOpen(false)} t={t} />}
 
             {view === 'lobby' ? (
                 <>
@@ -799,14 +825,14 @@ function App() {
                                 {/* Title Section */}
                                 <div className="text-center mb-10">
                                     <h1 className="text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 drop-shadow-lg tracking-tighter">
-                                        Mind Sync
+                                        {t('title')}
                                     </h1>
                                     <h2 className="mt-4 text-xl md:text-2xl font-light text-white tracking-widest uppercase">
-                                        그림으로 통하는 텔레파시
+                                        {t('subtitle')}
                                     </h2>
                                     <p className="mt-3 text-gray-400 text-sm font-medium">
-                                        AI 그림을 보고 친구의 속마음을 맞혀보세요.<br />
-                                        설치 없는 웹 보드게임!
+                                        {t('hero_subtitle')}<br />
+                                        {t('hero_description_1')}
                                     </p>
                                 </div>
 
@@ -823,7 +849,7 @@ function App() {
                                                 value={myName}
                                                 onChange={e => updateLocalName(e.target.value)}
                                                 className="w-full bg-black/50 border border-purple-500/30 rounded-xl p-4 text-white text-center font-bold text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/70 transition-all shadow-inner"
-                                                placeholder="닉네임을 입력하세요"
+                                                placeholder={t('enter_nickname')}
                                             />
                                         </div>
 
@@ -833,7 +859,7 @@ function App() {
                                             disabled={isLoading}
                                             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"
                                         >
-                                            <span>✨ 새로운 방 만들기</span>
+                                            <span>✨ {t('create_room')}</span>
                                         </button>
 
                                         {/* Divider */}
@@ -849,14 +875,14 @@ function App() {
                                                 onChange={e => setRoomInput(e.target.value)}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
                                                 className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
-                                                placeholder="입장 코드 4자리"
+                                                placeholder={t('enter_room_code')}
                                             />
                                             <button
                                                 onClick={handleJoinRoom}
                                                 disabled={isLoading}
                                                 className="bg-white/10 border border-white/10 px-6 rounded-xl hover:bg-white/20 transition-all font-bold text-gray-300 disabled:opacity-50 active:scale-95 text-sm"
                                             >
-                                                입장
+                                                {t('join_room')}
                                             </button>
                                         </div>
                                     </div>
@@ -868,7 +894,7 @@ function App() {
                                     className="mt-8 text-gray-400 text-sm cursor-pointer hover:text-white transition flex items-center gap-2 group"
                                 >
                                     <span className="group-hover:animate-bounce">📖</span>
-                                    <span className="underline decoration-gray-600 group-hover:decoration-white underline-offset-4">처음이신가요? 30초 만에 게임 배우기</span>
+                                    <span className="underline decoration-gray-600 group-hover:decoration-white underline-offset-4">{t('hero_description_2')}</span>
                                 </div>
 
                                 <p className="mt-4 text-[10px] text-gray-600 font-mono">
@@ -893,26 +919,26 @@ function App() {
                         <div className="w-full max-w-5xl mx-auto space-y-24">
                             <section className="space-y-6">
                                 <h3 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-indigo-200 to-purple-200">
-                                    상상력과 눈치의 심리전
+                                    {t('feature_main_title')}
                                 </h3>
                                 <div className="max-w-[800px] mx-auto space-y-6 text-gray-400 text-lg md:text-xl leading-relaxed font-light break-keep">
                                     <p>
-                                        Mind Sync는 AI가 그려낸 몽환적인 그림을 보고 서로의 생각을 맞히는 웹 보드게임입니다.
+                                        {t('feature_main_desc_1')}
                                     </p>
                                     <p>
-                                        '딕싯(Dixit)'과 같은 스토리텔링 게임을 좋아하시나요? 그렇다면 Mind Sync의 매력에도 푹 빠지실 겁니다.
+                                        {t('feature_main_desc_2')}
                                     </p>
                                     <p>
-                                        설치나 카드 구매 없이, 링크 하나로 친구들과 즉시 심리전을 시작해보세요.
+                                        {t('feature_main_desc_3')}
                                     </p>
                                 </div>
                             </section>
 
                             <section className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
                                 {[
-                                    { icon: "🎨", title: "무한한 AI 아트", desc: "AI가 창조한 몽환적이고 초현실적인 그림들이\n여러분의 상상력을 끊임없이 자극합니다." },
-                                    { icon: "🌐", title: "설치 없는 웹 게임", desc: "PC, 모바일 어디서든 링크만 있으면 접속 완료!\n3초 만에 바로 시작하세요." },
-                                    { icon: "🧠", title: "텔레파시 눈치 게임", desc: "뻔한 정답은 없습니다.\n오직 친구와의 교감만이 승리의 열쇠입니다." }
+                                    { icon: "🎨", title: t('feature_1_title'), desc: t('feature_1_desc') },
+                                    { icon: "🌐", title: t('feature_2_title'), desc: t('feature_2_desc') },
+                                    { icon: "🧠", title: t('feature_3_title'), desc: t('feature_3_desc') }
                                 ].map((feature, idx) => (
                                     <div key={idx} className="bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition duration-300 hover:-translate-y-2 relative group overflow-hidden">
                                         <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition group-hover:bg-purple-500/20"></div>
@@ -925,7 +951,7 @@ function App() {
 
                             <div className="pt-10 border-t border-white/10">
                                 <p className="text-gray-500 text-sm">
-                                    © 2024 Mind Sync • Powered by Lumiverse Lab
+                                    {t('footer_copyright')}
                                 </p>
                             </div>
                         </div>
@@ -970,12 +996,12 @@ function App() {
                                             {isCopied ? (
                                                 <>
                                                     <span>✅</span>
-                                                    <span>Copied!</span>
+                                                    <span>{t('copied')}</span>
                                                 </>
                                             ) : (
                                                 <>
                                                     <span>🔗</span>
-                                                    <span>Copy Link</span>
+                                                    <span>{t('copy_invite')}</span>
                                                 </>
                                             )}
                                         </button>
@@ -987,7 +1013,7 @@ function App() {
                                             onChange={(e) => setMyName(e.target.value)}
                                             className="bg-transparent border-none text-center text-white w-full focus:outline-none font-bold text-lg"
                                         />
-                                        <button onClick={handleUpdateProfile} className="bg-blue-600/80 hover:bg-blue-500 px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition shadow-lg">이름 변경</button>
+                                        <button onClick={handleUpdateProfile} className="bg-blue-600/80 hover:bg-blue-500 px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition shadow-lg">{t('change_name')}</button>
                                     </div>
 
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 justify-center">
@@ -1023,7 +1049,7 @@ function App() {
                                                 <div className="w-20 h-20 rounded-3xl border-2 border-dashed border-purple-400 flex items-center justify-center mb-3 bg-purple-500/10 group-hover:bg-purple-500/20 shadow-lg backdrop-blur-sm">
                                                     <span className="text-3xl text-purple-300 font-bold">+</span>
                                                 </div>
-                                                <span className="text-purple-300 font-bold text-xs bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">Add AI</span>
+                                                <span className="text-purple-300 font-bold text-xs bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">{t('add_ai')}</span>
                                             </div>
                                         )}
 
@@ -1050,14 +1076,14 @@ function App() {
                                                 >-</button>
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-2xl font-bold text-white font-mono">{roundsPerUser}</span>
-                                                    <span className="text-[10px] text-gray-500">인당 라운드</span>
+                                                    <span className="text-[10px] text-gray-500">{t('rounds_label')}</span>
                                                 </div>
                                                 <button
                                                     onClick={() => setRoundsPerUser(Math.min(5, roundsPerUser + 1))}
                                                     className="w-12 h-12 rounded-xl bg-gray-700/50 hover:bg-gray-600 text-xl font-bold transition text-white"
                                                 >+</button>
                                             </div>
-                                            <p className="text-gray-500 text-xs mt-3">총 {users.length * roundsPerUser} 라운드가 진행됩니다.</p>
+                                            <p className="text-gray-500 text-xs mt-3">{t('total_rounds_info', { n: users.length * roundsPerUser })}</p>
                                         </div>
 
                                         <button
@@ -1068,14 +1094,14 @@ function App() {
                                                     ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white hover:shadow-green-500/30'
                                                     : 'bg-gray-800 text-gray-600 cursor-not-allowed border border-white/5'}`}
                                         >
-                                            {users.length < 3 ? `WAITING FOR PLAYERS (${users.length}/3)` : 'GAME START 🚀'}
+                                            {users.length < 3 ? t('waiting_for_players', { current: users.length, total: 3 }) : t('start_game_rocket')}
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="glass-card px-8 py-6 rounded-2xl inline-block mt-4">
                                         <div className="flex items-center gap-4">
                                             <div className="w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
-                                            <span className="text-gray-300 font-bold animate-pulse">호스트가 게임을 설정하고 있습니다...</span>
+                                            <span className="text-gray-300 font-bold animate-pulse">{t('host_setting_game')}</span>
                                         </div>
                                     </div>
                                 )}
@@ -1086,55 +1112,29 @@ function App() {
                     {
                         view === 'game' && roomState && (
                             <div className="w-full max-w-7xl p-2 flex flex-col h-full relative z-0">
-                                {/* [Mobile Top Bar] 2-Row Compact Layout */}
-                                <div className="md:hidden flex flex-col bg-black/40 px-4 py-3 rounded-[1.5rem] backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-2 mx-2 mt-2">
-                                    {/* Row 1: Timer - Theme - Help */}
-                                    <div className="flex items-center justify-between gap-2 w-full">
-                                        {/* Left: Timer */}
-                                        <div className="flex items-center gap-2 flex-none">
-                                            <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border-[2px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
-                                                <span className="text-[8px] text-gray-400 -mb-0.5 font-bold">SEC</span>
-                                                <span className="text-sm font-black font-mono">{timeLeft}</span>
+                                {/* [Mobile Top Bar] Redesigned 2-Row Layout */}
+                                <div className="md:hidden flex flex-col w-full p-3 gap-2">
+                                    {/* Row 1: Timer/Round & Avatars */}
+                                    <div className="flex justify-between items-center w-full">
+                                        {/* Left: Timer & Round */}
+                                        <div className="flex items-center gap-3">
+                                            <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border-[3px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5 text-white'}`}>
+                                                <span className="text-[8px] text-purple-200 -mb-0.5 font-bold">SEC</span>
+                                                <span className="text-base font-black font-mono leading-none">{timeLeft}</span>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[8px] text-gray-500 font-bold tracking-widest text-left">RND</span>
-                                                <span className="text-sm font-bold text-white leading-none">{roomState.current_round}<span className="text-gray-600 text-[10px]">/{roomState.total_rounds}</span></span>
+                                                <span className="text-[8px] text-gray-300 font-bold tracking-widest text-left">ROUND</span>
+                                                <span className="text-base font-bold text-white leading-none">{roomState.current_round} <span className="text-gray-400 text-xs">/ {roomState.total_rounds}</span></span>
                                             </div>
                                         </div>
 
-                                        {/* Center: Theme (Flexible) */}
-                                        <div className="flex-1 min-w-0 flex justify-center px-1">
-                                            {roomState.selected_word ? (
-                                                <div className="w-full flex flex-col items-center">
-                                                    <span className="text-[8px] text-yellow-500/80 mb-0.5 block text-center font-bold tracking-widest uppercase">Theme</span>
-                                                    <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-3 py-1.5 rounded-xl shadow-sm text-center w-full min-w-0 backdrop-blur-sm">
-                                                        <span className="text-white font-extrabold text-base drop-shadow-md tracking-wide whitespace-normal break-keep leading-tight block line-clamp-2">{roomState.selected_word}</span>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">
-                                                    <span className="text-gray-400 text-xs italic flex items-center gap-1">
-                                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
-                                                        선정 중...
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Right: Help */}
-                                        <div className="flex-none">
-                                            <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center border border-white/10 transition text-sm active:scale-95">❔</button>
-                                        </div>
-                                    </div>
-
-                                    {/* Row 2: Players */}
-                                    <div className="w-full border-t border-white/5 pt-2 flex justify-center">
-                                        <div className="flex gap-2 overflow-x-auto py-1 px-2 no-scrollbar justify-center">
+                                        {/* Right: Avatars (Single line, No Wrap) */}
+                                        <div className="flex flex-nowrap items-center justify-end gap-1 px-2 max-w-[50%]">
                                             {users.map(u => (
                                                 <div key={u.user_id} className="relative group flex-none">
                                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-md
-                                    ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
-                                    ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-1 ring-offset-black' : ''}`}>
+                                                        ${u.user_id === roomState.storyteller_id ? 'border-yellow-400 bg-gray-900 text-yellow-400 z-10' : 'border-gray-700 bg-gray-800 text-gray-400'} 
+                                                        ${u.user_id === myId ? 'ring-2 ring-pink-500 ring-offset-1 ring-offset-black' : ''}`}>
                                                         <span className="font-bold text-xs">{u.username.substr(0, 1)}</span>
                                                     </div>
                                                     {u.user_id === roomState.storyteller_id && <div className="absolute -top-1.5 -right-1 bg-yellow-400 rounded-full w-4 h-4 flex items-center justify-center text-[8px] shadow-sm border border-black z-20">👑</div>}
@@ -1145,41 +1145,74 @@ function App() {
                                             ))}
                                         </div>
                                     </div>
+
+                                    {/* Row 2: Theme Word & Controls */}
+                                    <div className="flex justify-between items-center w-full gap-2">
+                                        {/* Center: Theme Word (flex-1) */}
+                                        <div className="flex-1 min-w-0">
+                                            {roomState.selected_word ? (
+                                                <div className="animate-fade-in-down w-full">
+                                                    <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-4 py-1.5 rounded-xl shadow-lg text-center w-full backdrop-blur-sm truncate">
+                                                        <span className="text-white font-extrabold text-lg drop-shadow-md tracking-wider">{getWord(roomState.selected_word)}</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                    <span className="text-gray-400 text-xs italic flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
+                                                        {t('choosing_topic')}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Right: Controls */}
+                                        <div className="flex items-center gap-2 flex-none">
+                                            <LanguageToggle toggleLanguage={toggleLanguage} language={language} className="" />
+                                            <button
+                                                onClick={() => setShowRules(true)}
+                                                className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 transition"
+                                            >
+                                                ?
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* [Desktop Top Bar] Original Layout */}
                                 <div className="hidden md:flex flex-none flex-row items-center justify-between bg-black/40 px-6 py-3 rounded-full backdrop-blur-xl border border-white/10 z-30 shadow-2xl gap-4 mx-2 mt-2">
-                                    <div className="flex items-center gap-4 min-w-0 w-1/4 justify-start">
-                                        <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-full border-[3px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5'}`}>
-                                            <span className="text-[9px] text-gray-400 -mb-1 font-bold">SEC</span>
+                                    <div className="flex items-center gap-4 min-w-max justify-start">
+                                        <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-full border-[3px] shadow-inner ${timeLeft <= 10 ? 'border-red-500 text-red-400 bg-red-900/20 animate-pulse' : 'border-white/10 bg-white/5 text-white'}`}>
+                                            <span className="text-[9px] text-purple-200 -mb-1 font-bold">SEC</span>
                                             <span className="text-lg font-black font-mono">{timeLeft}</span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[9px] text-gray-500 font-bold tracking-widest text-left">ROUND</span>
-                                            <span className="text-lg font-bold text-white leading-none">{roomState.current_round} <span className="text-gray-600 text-sm">/ {roomState.total_rounds}</span></span>
+                                            <span className="text-[9px] text-gray-300 font-bold tracking-widest text-left">ROUND</span>
+                                            <span className="text-lg font-bold text-white leading-none">{roomState.current_round} <span className="text-gray-400 text-sm">/ {roomState.total_rounds}</span></span>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col items-center justify-center flex-1 w-full">
+                                    <div className="flex flex-col items-center justify-center flex-1 px-4 min-w-0">
                                         {roomState.selected_word ? (
                                             <div className="animate-fade-in-down transform transition-all hover:scale-105 cursor-default w-full flex flex-col items-center">
                                                 <span className="text-[10px] text-yellow-500/80 mb-1 block text-center font-bold tracking-widest uppercase">Theme</span>
                                                 <div className="bg-gradient-to-r from-yellow-600/90 to-orange-600/90 border-t border-yellow-400/50 px-10 py-2 rounded-2xl shadow-[0_10px_20px_rgba(234,179,8,0.2)] text-center w-full min-w-[200px] backdrop-blur-sm">
-                                                    <span className="text-white font-extrabold text-2xl drop-shadow-md tracking-wider">{roomState.selected_word}</span>
+                                                    <span className="text-white font-extrabold text-2xl drop-shadow-md tracking-wider">{getWord(roomState.selected_word)}</span>
                                                 </div>
                                             </div>
                                         ) : (
                                             <div className="bg-white/5 px-6 py-2 rounded-full border border-white/5">
                                                 <span className="text-gray-400 text-sm italic flex items-center gap-2">
                                                     <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
-                                                    주제 선정 중...
+                                                    {t('choosing_topic')}
                                                 </span>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="flex items-center justify-end gap-3 w-full md:w-1/4 pt-0 border-none">
-                                        <div className="flex gap-2 transition-all duration-300">
+                                    {/* Desktop Header Right */}
+                                    <div className="flex items-center justify-end gap-3 min-w-max pt-0 border-none">
+                                        <div className="flex gap-1 transition-all duration-300">
                                             {users.map(u => (
                                                 <div key={u.user_id} className="relative group transition-all hover:-translate-y-2">
                                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg
@@ -1198,6 +1231,7 @@ function App() {
                                                 </div>
                                             ))}
                                         </div>
+                                        <LanguageToggle toggleLanguage={toggleLanguage} language={language} className="" />
                                         <button onClick={() => setShowRules(true)} className="bg-white/5 hover:bg-white/20 w-10 h-10 rounded-full flex items-center justify-center border border-white/10 transition text-lg active:scale-95">❔</button>
                                     </div>
                                 </div>
@@ -1207,8 +1241,8 @@ function App() {
                                         <>
                                             {isStoryteller && !confirmedCard && (
                                                 <div className="text-center mt-12 animate-fade-in-up">
-                                                    <h3 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300 mb-3">Your Turn, Storyteller</h3>
-                                                    <p className="text-gray-400 text-base font-light tracking-wide">아래 덱에서 이야기를 시작할 카드를 선택해주세요.</p>
+                                                    <h3 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300 mb-3">{t('phase_storyteller')}</h3>
+                                                    <p className="text-gray-400 text-base font-light tracking-wide">{t('storyteller_instruction')}</p>
                                                 </div>
                                             )}
                                             {isStoryteller && confirmedCard && (
@@ -1231,8 +1265,8 @@ function App() {
 
                                                     <div className="flex flex-col items-center md:items-start w-full max-w-2xl">
                                                         <div className="mb-6 text-center md:text-left">
-                                                            <h3 className="text-2xl md:text-4xl font-black text-white mb-2">단어 선택</h3>
-                                                            <p className="text-gray-400 text-sm font-light">이미지의 느낌을 가장 잘 표현하는 단어는 무엇인가요?</p>
+                                                            <h3 className="text-2xl md:text-4xl font-black text-white mb-2">{t('phase_storyteller')}</h3>
+                                                            <p className="text-gray-400 text-sm font-light">{t('storyteller_word_instruction')}</p>
                                                         </div>
 
                                                         <div className="w-full bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md mb-6 shadow-2xl">
@@ -1245,22 +1279,22 @@ function App() {
                                                                                 roomState.reroll_count <= 3 ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 animate-pulse' :
                                                                                     'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20'}`}>
                                                                         <span>{roomState.reroll_count > 0 ? '🔄' : '🚫'}</span>
-                                                                        {roomState.reroll_count > 0 ? `단어 변경 (${roomState.reroll_count}/10)` : '변경 불가'}
+                                                                        {roomState.reroll_count > 0 ? t('reroll_words', { n: roomState.reroll_count }) : t('reroll_limit_reached')}
                                                                     </button>
                                                                 </div>
-                                                                <p className="text-[10px] text-orange-400/80 font-light tracking-tight">※ 단어 변경 시 이전 단어들은 다시 선택할 수 없습니다.</p>
+                                                                <p className="text-[10px] text-orange-400/80 font-light tracking-tight">{t('reroll_warning')}</p>
                                                             </div>
-                                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                                                                {roomState.word_candidates?.map((word) => (
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 sm:grid-cols-5 gap-2">
+                                                                {roomState.word_candidates?.map((word, idx) => (
                                                                     <button
-                                                                        key={word}
+                                                                        key={idx}
                                                                         onClick={() => setSelectedWord(word)}
-                                                                        className={`py-3 px-1 text-xs md:text-sm rounded-xl font-bold border transition-all duration-200 
-                                                        ${selectedWord === word
+                                                                        className={`py-3 px-1 text-xs md:text-sm rounded-xl font-bold border transition-all duration-200 h-auto break-words hyphens-auto
+                                                        ${(selectedWord && (selectedWord.ko === word.ko || selectedWord === word))
                                                                                 ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-transparent text-white shadow-lg scale-105 ring-2 ring-pink-300/50'
                                                                                 : 'bg-black/40 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
                                                                     >
-                                                                        {word}
+                                                                        {getWord(word)}
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -1275,7 +1309,7 @@ function App() {
                                                                     : 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-white/5'}`}
                                                         >
                                                             {selectedWord && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>}
-                                                            {selectedWord ? `"${selectedWord}" (으)로 결정하기` : '단어를 선택해주세요'}
+                                                            {selectedWord ? t('confirm_selection', { word: getWord(selectedWord) }) : t('select_word_prompt')}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1286,8 +1320,8 @@ function App() {
                                                         <div className="absolute inset-0 border-4 border-t-pink-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
                                                         <span className="text-4xl">🤔</span>
                                                     </div>
-                                                    <h3 className="text-2xl font-bold text-white mb-2">이야기꾼이 고민 중입니다...</h3>
-                                                    <p className="text-gray-500">어떤 기상천외한 단어가 나올까요?</p>
+                                                    <h3 className="text-2xl font-bold text-white mb-2">{t('storyteller_thinking')}</h3>
+                                                    <p className="text-gray-500">{t('storyteller_thinking_desc')}</p>
                                                 </div>
                                             )}
                                         </>
@@ -1301,12 +1335,12 @@ function App() {
 
                                                 {!isStoryteller && !amISubmitted ? (
                                                     <div className="relative z-10">
-                                                        <h2 className="text-3xl font-black text-white mb-3">당신의 카드를 선택하세요!</h2>
-                                                        <p className="text-gray-300 mb-8 font-light">주제 <span className="text-yellow-400 font-bold">"{roomState.selected_word}"</span> 와(과) 가장 잘 어울리는 이미지는?</p>
+                                                        <h2 className="text-3xl font-black text-white mb-3">{t('phase_audience')}</h2>
+                                                        <p className="text-gray-300 mb-8 font-light">{t('audience_instruction', { word: getWord(roomState.selected_word) })}</p>
 
                                                         {targetSubmitCount > 1 && (
                                                             <div className="inline-block bg-white/10 text-pink-300 px-6 py-2 rounded-full text-sm font-bold border border-white/20 mb-6">
-                                                                {mySubmitCount} / {targetSubmitCount}장 제출됨
+                                                                {t('submitted_count', { c: mySubmitCount, t: targetSubmitCount })}
                                                             </div>
                                                         )}
                                                         <div className="flex justify-center">
@@ -1318,8 +1352,8 @@ function App() {
                                                         <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50">
                                                             <span className="text-3xl">✅</span>
                                                         </div>
-                                                        <h2 className="text-2xl font-bold text-green-300 mb-2">제출 완료!</h2>
-                                                        <p className="text-gray-400 text-sm mb-6">다른 플레이어들이 고민 중입니다...</p>
+                                                        <h2 className="text-2xl font-bold text-green-300 mb-2">{t('submitted')}</h2>
+                                                        <p className="text-gray-400 text-sm mb-6">{t('waiting_others')}</p>
                                                         <div className="flex justify-center gap-1">
                                                             <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
                                                             <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
@@ -1329,7 +1363,7 @@ function App() {
                                                 )}
                                             </div>
                                             <div className="mt-8 text-center max-w-md">
-                                                <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-2 block font-bold">Game Tip</span>
+                                                <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-2 block font-bold">{t('game_tip')}</span>
                                                 <p className="text-gray-400 text-sm italic bg-black/40 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
                                                     "{currentTip}"
                                                 </p>
@@ -1341,12 +1375,12 @@ function App() {
                                         <div className="w-full flex flex-col items-center">
                                             <div className="text-center mb-8 animate-fade-in-down">
                                                 <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-2">
-                                                    {isStoryteller ? "👀 투표 결과를 기다리는 중..." : amIVoted ? "✅ 투표 완료! 결과는?" : "🤔 정답을 찾아보세요!"}
+                                                    {isStoryteller ? t('waiting_host') : amIVoted ? t('vote_completed') : t('phase_voting')}
                                                 </h2>
-                                                <p className="text-gray-400 text-sm font-light">이야기꾼의 카드는 무엇일까요?</p>
+                                                <p className="text-gray-400 text-sm font-light">{t('voting_instruction')}</p>
                                             </div>
                                             {(!roomState.voting_candidates || roomState.voting_candidates.length === 0) ? (
-                                                <div className="text-gray-400 animate-pulse mt-20">카드 섞는 중...</div>
+                                                <div className="text-gray-400 animate-pulse mt-20">{t('tallying_results')}</div>
                                             ) : (
                                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 p-6 w-full max-w-7xl animate-fade-in-up">
                                                     {roomState.voting_candidates.map((card) => {
@@ -1364,7 +1398,7 @@ function App() {
                                                                 />
                                                                 {card.user_id === myId && (
                                                                     <div className="absolute inset-0 bg-black/70 rounded-2xl flex items-center justify-center backdrop-blur-[2px]">
-                                                                        <span className="text-white font-bold border border-white/30 px-3 py-1.5 rounded-full text-xs bg-black/50">⛔ 내 카드</span>
+                                                                        <span className="text-white font-bold border border-white/30 px-3 py-1.5 rounded-full text-xs bg-black/50">⛔ {t('my_card')}</span>
                                                                     </div>
                                                                 )}
                                                                 {isMyVoted && <div className="absolute top-3 right-3 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-20 border border-blue-400">PICK ✅</div>}
@@ -1381,14 +1415,14 @@ function App() {
                                             {resultMessage && (
                                                 <div className="mb-8 text-center animate-bounce-in mt-4">
                                                     <h3 className="text-xl md:text-3xl font-black text-white drop-shadow-lg bg-white/10 px-8 py-3 rounded-full border border-white/20 backdrop-blur-md shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                                                        {resultMessage}
+                                                        {t(resultMessage)}
                                                     </h3>
                                                 </div>
                                             )}
 
                                             <div className="flex items-center gap-4 mb-8">
                                                 <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-gray-500"></div>
-                                                <h2 className="text-2xl font-bold text-gray-300 uppercase tracking-widest">Round Results</h2>
+                                                <h2 className="text-2xl font-bold text-gray-300 uppercase tracking-widest">{t('phase_result')}</h2>
                                                 <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-gray-500"></div>
                                             </div>
 
@@ -1398,7 +1432,7 @@ function App() {
                                                         {res.is_storyteller && (
                                                             <div className="absolute -top-6 z-20">
                                                                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-black px-4 py-1.5 rounded-full shadow-lg animate-bounce border-2 border-white">
-                                                                    👑 정답 카드
+                                                                    {t('label_correct_card')}
                                                                 </span>
                                                             </div>
                                                         )}
@@ -1426,13 +1460,13 @@ function App() {
                                                                     ))}
                                                                 </div>
                                                             </div>
-                                                        ) : <div className="text-[10px] text-gray-600 italic mt-2">득표 없음</div>}
+                                                        ) : <div className="text-[10px] text-gray-600 italic mt-2">{t('no_votes')}</div>}
                                                     </div>
                                                 ))}
                                             </div>
 
                                             <div className="w-full max-w-3xl px-6 mb-8">
-                                                <h3 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider ml-1">Scoreboard</h3>
+                                                <h3 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider ml-1">{t('scoreboard')}</h3>
                                                 <div className="flex flex-col gap-3">
                                                     {users.map(u => (
                                                         <div key={u.user_id} className={`flex justify-between items-center px-6 py-4 rounded-2xl border transition-all duration-300
@@ -1446,7 +1480,9 @@ function App() {
                                                                     </span>
                                                                     {u.user_id === myId && <span className="bg-pink-500 text-[9px] text-white px-1.5 rounded font-bold">ME</span>}
                                                                 </div>
-                                                                <span className="text-xs text-gray-500 italic mt-0.5">{u.last_score_reason || "대기 중"}</span>
+                                                                <span className="text-xs text-gray-500 italic mt-0.5 transform transition-all duration-300">
+                                                                    {u.last_score_reason ? getScoreReasonText(u.last_score_reason, t) : t('waiting_round')}
+                                                                </span>
                                                             </div>
                                                             <div className="flex items-center gap-3">
                                                                 {u.last_gained_score > 0 && (
@@ -1472,10 +1508,10 @@ function App() {
                                                 {resultDelayCount > 0 ? (
                                                     <span className="flex items-center gap-2">
                                                         <span className="animate-spin text-xl">⏳</span>
-                                                        <span>집계 중... {resultDelayCount}</span>
+                                                        <span>{t('tallying_results')} {resultDelayCount}</span>
                                                     </span>
                                                 ) : (
-                                                    <>{roomState.current_round >= roomState.total_rounds ? "🏆 최종 결과 보기" : "다음 라운드 진행 ➡️"}</>
+                                                    <>{roomState.current_round >= roomState.total_rounds ? "🏆 " + t('final_result') : t('next_round') + " ➡️"}</>
                                                 )}
                                             </button>
                                         </div>
@@ -1510,7 +1546,7 @@ function App() {
                                                     </div>
                                                 ))}
                                             </div>
-                                            <button onClick={handleBackToLobby} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-4 px-12 rounded-2xl transition hover:scale-105 active:scale-95">로비로 돌아가기</button>
+                                            <button onClick={handleBackToLobby} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-4 px-12 rounded-2xl transition hover:scale-105 active:scale-95">{t('back_to_lobby')}</button>
                                         </div>
                                     )}
                                 </div>
@@ -1559,7 +1595,7 @@ function App() {
                                                 <div className="flex-none z-[130] animate-fade-in-down pointer-events-none mb-4">
                                                     <div className="bg-black/40 px-8 py-3 rounded-full border border-white/10 backdrop-blur-md shadow-2xl flex flex-col items-center">
                                                         <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Current Theme</span>
-                                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-orange-200 font-black text-2xl tracking-wider">"{roomState.selected_word}"</span>
+                                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-orange-200 font-black text-2xl tracking-wider">"{getWord(roomState.selected_word)}"</span>
                                                     </div>
                                                 </div>
                                             )}
@@ -1597,22 +1633,22 @@ function App() {
                                             </div>
 
                                             <div className="flex-none z-[120] w-full max-w-md px-4 flex flex-col sm:flex-row justify-center gap-4 mt-6 pointer-events-auto">
-                                                <button onClick={() => setZoomCard(null)} className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-black/50 hover:bg-black/70 border border-white/20 font-bold backdrop-blur-md transition text-white/80 hover:text-white shadow-lg">닫기</button>
+                                                <button onClick={() => setZoomCard(null)} className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-black/50 hover:bg-black/70 border border-white/20 font-bold backdrop-blur-md transition text-white/80 hover:text-white shadow-lg">{t('close')}</button>
                                                 {((isStoryteller && !confirmedCard && roomState.phase === 'storyteller_choosing' && !zoomCard.isVotingCandidate) ||
                                                     (!isStoryteller && !amISubmitted && roomState.phase === 'audience_submitting' && !zoomCard.isVotingCandidate && !mySubmittedCards.includes(zoomCard.id))) && (
                                                         <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-[1.02] font-black text-lg shadow-xl transition border border-white/20 active:scale-95">
-                                                            {isStoryteller ? '이 카드로 결정! 🎯' : (targetSubmitCount > 1 ? `제출 (${mySubmitCount + 1}/${targetSubmitCount})` : '이 카드로 제출! 🔥')}
+                                                            {isStoryteller ? t('confirm_storyteller') : (targetSubmitCount > 1 ? t('submit_card_count', { current: mySubmitCount + 1, total: targetSubmitCount }) : t('submit_card'))}
                                                         </button>
                                                     )}
 
                                                 {(!isStoryteller && roomState.phase === 'audience_submitting' && !zoomCard.isVotingCandidate && mySubmittedCards.includes(zoomCard.id)) && (
                                                     <button disabled className="w-full sm:flex-1 py-4 rounded-2xl bg-gray-700/50 text-gray-500 font-bold shadow-xl cursor-not-allowed border border-gray-600/50">
-                                                        제출 완료됨
+                                                        {t('submitted')}
                                                     </button>
                                                 )}
 
                                                 {(!isStoryteller && !amIVoted && roomState.phase === 'voting' && zoomCard.isVotingCandidate && zoomCard.user_id !== myId) && (
-                                                    <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:scale-[1.02] font-black text-lg shadow-xl transition animate-pulse border border-white/20">🗳️ 이게 정답이다!</button>
+                                                    <button onClick={confirmCardSelection} className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:scale-[1.02] font-black text-lg shadow-xl transition animate-pulse border border-white/20">{t('vote_confirm')}</button>
                                                 )}
                                             </div>
                                         </div>
@@ -1647,6 +1683,7 @@ function App() {
                     </div>
                 )
             }
+            {(view === 'lobby' || view === 'waiting') && <LanguageToggle toggleLanguage={toggleLanguage} language={language} className="fixed top-8 right-8 z-[9999]" />}
         </div >
     );
 }
