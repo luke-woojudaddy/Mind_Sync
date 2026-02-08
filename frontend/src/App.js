@@ -877,7 +877,12 @@ function App() {
                     </section>
                 </>
             ) : (
-                <main className="h-screen w-full overflow-hidden flex flex-col items-center justify-center relative pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0">
+                <main className={`h-screen w-full relative pb-[calc(env(safe-area-inset-bottom,20px)+60px)] md:pb-0 flex flex-col
+                    ${view === 'game'
+                        ? 'overflow-hidden items-center justify-center'
+                        : 'overflow-y-auto items-center justify-start pt-10'
+                    }`}
+                >
 
                     {
                         view === 'waiting' && (
